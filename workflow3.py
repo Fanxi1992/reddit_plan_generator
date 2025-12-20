@@ -1,13 +1,11 @@
-
-### 📜 Phase 3 完整代码 (`workflow_phase3.py`)
-
 import os
 import json
 import re
+import glob
 import praw
 import prawcore
 import pandas as pd
-from datetime import datetime
+import datetime
 from dotenv import load_dotenv
 from google import genai
 
@@ -15,35 +13,40 @@ from google import genai
 # 1. 配置与鉴权
 # ==========================================
 load_dotenv()
+MODEL_ID = "gemini-3-flash-preview"
+TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
-# Check Reddit Config
 if not os.getenv("REDDIT_CLIENT_ID"):
     print("❌ Error: Missing Reddit credentials in .env")
     exit(1)
 
-# Check Google Config
-# API_KEY = os.environ.get("GOOGLE_API_KEY")
-MODEL_ID = "gemini-3-flash-preview"
-# if not API_KEY:
-#     print("❌ Error: Missing Google API Key in .env")
-#     exit(1)
+# Helper: Find latest file
+def get_latest_file(pattern):
+    files = glob.glob(pattern)
+    return max(files, key=os.path.getctime) if files else None
 
-# Load Session ID
+# [MODIFIED] Load LATEST Phase 2 Session ID
 try:
-    with open("session_id.txt", "r") as f:
+    latest_session_file = get_latest_file("session_id_phase2_*.txt")
+    if not latest_session_file: raise FileNotFoundError("No 'session_id_phase2_*.txt' found.")
+    
+    with open(latest_session_file, "r") as f:
         SESSION_ID = f.read().strip()
-    print(f"📂 Loaded Session ID: {SESSION_ID}")
-except FileNotFoundError:
-    print("❌ Error: 'session_id.txt' not found. Run Phase 2 first.")
+    print(f"📂 Loaded Session ID from: {latest_session_file}")
+except Exception as e:
+    print(f"❌ Error: {e}")
     exit(1)
 
-# Load Raw Subreddit List from Phase 2
+# [MODIFIED] Load LATEST Raw Subreddit JSON
 try:
-    with open("raw_subreddits.json", "r") as f:
+    latest_json_file = get_latest_file("raw_subreddits_*.json")
+    if not latest_json_file: raise FileNotFoundError("No 'raw_subreddits_*.json' found.")
+
+    with open(latest_json_file, "r") as f:
         target_subreddits = json.load(f)
-    print(f"📋 Loaded {len(target_subreddits)} subreddits from JSON.")
-except FileNotFoundError:
-    print("❌ Error: 'raw_subreddits.json' not found. Run Phase 2 first.")
+    print(f"📋 Loaded {len(target_subreddits)} subreddits from: {latest_json_file}")
+except Exception as e:
+    print(f"❌ Error: {e}")
     exit(1)
 
 # Initialize Clients
@@ -149,11 +152,11 @@ def fetch_and_format_rules(sub_list):
         ai_context_buffer += sub_ai_block
         ai_context_buffer += "\n" + "-"*40 + "\n\n"
 
-    # 导出 Excel 供人类存档
+    # [MODIFIED] Export Excel with Timestamp
     df = pd.DataFrame(excel_data).sort_values(by="Subscribers", ascending=False)
-    filename = f"Phase3_Subreddit_Audit_{datetime.now().strftime('%Y%m%d')}.xlsx"
-    df.to_excel(filename, index=False)
-    print(f"\n💾 Excel Audit Report saved: {filename}")
+    excel_filename = f"Phase3_Subreddit_Audit_{TIMESTAMP}.xlsx"
+    df.to_excel(excel_filename, index=False)
+    print(f"\n💾 Excel Audit Report saved: {excel_filename}")
 
     return ai_context_buffer
 
@@ -198,23 +201,31 @@ Example:
 
         full_response = interaction.outputs[-1].text
         
-        # 1. Save the JSON for Phase 4 (Content Gen)
+        # 1. Save JSON
         json_match = re.search(r"```json\s*(\[.*?\])\s*```", full_response, re.DOTALL)
         if json_match:
             final_list = json.loads(json_match.group(1))
-            with open("final_subreddits.json", "w") as f:
+            
+            # [MODIFIED] Save Final JSON with Timestamp
+            final_json_filename = f"final_subreddits_{TIMESTAMP}.json"
+            with open(final_json_filename, "w") as f:
                 json.dump(final_list, f, indent=4)
-            print(f"📦 [File Created] 'final_subreddits.json' with {len(final_list)} targets.")
+            print(f"📦 [File Created] '{final_json_filename}' with {len(final_list)} targets.")
         
-        # 2. Save the Report Text
+        # 2. Save Report
         report_text = re.sub(r"```json\s*\[.*?\]\s*```", "", full_response, flags=re.DOTALL).strip()
-        with open("project_part2_strategy.md", "w", encoding="utf-8") as f:
+        
+        # [MODIFIED] Save Strategy Report with Timestamp
+        strategy_filename = f"project_part2_strategy_{TIMESTAMP}.md"
+        with open(strategy_filename, "w", encoding="utf-8") as f:
             f.write(report_text)
-        print(f"📄 [File Created] 'project_part2_strategy.md'.")
+        print(f"📄 [File Created] '{strategy_filename}'.")
 
-        # Update Session
-        with open("session_id.txt", "w") as f:
+        # [MODIFIED] Save Session ID for Phase 3
+        new_session_filename = f"session_id_phase3_{TIMESTAMP}.txt"
+        with open(new_session_filename, "w") as f:
             f.write(interaction.id)
+        print(f"🔗 [Session Updated] Saved to '{new_session_filename}'")
 
     except Exception as e:
         print(f"❌ Gemini Error: {e}")

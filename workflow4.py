@@ -1,10 +1,11 @@
 import os
 import json
 import re
+import glob
 import praw
 import prawcore
 import pandas as pd
-from datetime import datetime
+import datetime
 from dotenv import load_dotenv
 from google import genai
 
@@ -12,32 +13,43 @@ from google import genai
 # 1. 配置与初始化
 # ==========================================
 load_dotenv()
+MODEL_ID = "gemini-3-flash-preview"
+TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
-# 检查环境
 if not os.getenv("REDDIT_CLIENT_ID"):
     print("❌ Error: Missing Reddit credentials in .env")
     exit(1)
 
-# API_KEY = os.environ.get("GOOGLE_API_KEY")
-MODEL_ID = "gemini-3-flash-preview"
+# Helper: Find latest file
+def get_latest_file(pattern):
+    files = glob.glob(pattern)
+    return max(files, key=os.path.getctime) if files else None
 
-# 加载 Session ID (接续上下文)
+# [MODIFIED] Load LATEST Phase 3 Session ID
 try:
-    with open("session_id.txt", "r") as f:
+    latest_session_file = get_latest_file("session_id_phase3_*.txt")
+    if not latest_session_file: raise FileNotFoundError("No 'session_id_phase3_*.txt' found.")
+    
+    with open(latest_session_file, "r") as f:
         SESSION_ID = f.read().strip()
-    print(f"📂 Loaded Session ID: {SESSION_ID}")
-except FileNotFoundError:
-    print("❌ Error: 'session_id.txt' not found. Run Phase 1-3 first.")
+    print(f"📂 Loaded Session ID from: {latest_session_file}")
+except Exception as e:
+    print(f"❌ Error: {e}")
     exit(1)
 
-# 加载 Phase 3 选出的 Final Subreddits
+# [MODIFIED] Load LATEST Final Subreddit JSON
 try:
-    with open("final_subreddits.json", "r") as f:
+    latest_final_json = get_latest_file("final_subreddits_*.json")
+    if not latest_final_json: raise FileNotFoundError("No 'final_subreddits_*.json' found.")
+
+    with open(latest_final_json, "r") as f:
         target_subreddits = json.load(f)
-    print(f"🎯 Loaded Target Subreddits: {target_subreddits}")
-except FileNotFoundError:
-    print("❌ Error: 'final_subreddits.json' not found. Run Phase 3 first.")
+    print(f"🎯 Loaded Target Subreddits from: {latest_final_json}")
+    print(f"   List: {target_subreddits}")
+except Exception as e:
+    print(f"❌ Error: {e}")
     exit(1)
+
 
 reddit = praw.Reddit(
     client_id=os.getenv("REDDIT_CLIENT_ID"),
@@ -198,12 +210,12 @@ def mine_subreddit_data(sub_list):
             print(f" ❌ Error ({e})")
             ai_buffer += f"### r/{sub_name}: Error scraping data ({e})\n\n"
 
-    # 导出 KPI 到 Excel
+    # [MODIFIED] Export Excel with Timestamp
     if kpi_export_data:
         df = pd.DataFrame(kpi_export_data)
-        filename = f"Phase4_KPI_Analysis_{datetime.now().strftime('%Y%m%d')}.xlsx"
-        df.to_excel(filename, index=False)
-        print(f"\n📊 KPI Data saved to: {filename}")
+        excel_filename = f"Phase4_KPI_Analysis_{TIMESTAMP}.xlsx"
+        df.to_excel(excel_filename, index=False)
+        print(f"\n📊 KPI Data saved to: {excel_filename}")
     
     return ai_buffer
 
@@ -260,18 +272,21 @@ Please structure the response clearly with Markdown headers for each Subreddit.
 
         full_response = interaction.outputs[-1].text
         
-        # 保存最终报告
-        with open("project_final_content_plan.md", "w", encoding="utf-8") as f:
+        # [MODIFIED] Save Final Plan with Timestamp
+        final_filename = f"project_final_content_plan_{TIMESTAMP}.md"
+        with open(final_filename, "w", encoding="utf-8") as f:
             f.write(full_response)
         
         print("\n" + "="*50)
         print("🎉🎉🎉 WORKFLOW COMPLETE! 🎉🎉🎉")
-        print("📄 Final Report: 'project_final_content_plan.md'")
+        print(f"📄 Final Report: '{final_filename}'")
         print("="*50)
 
-        # 更新 Session
-        with open("session_id.txt", "w") as f:
+        # [MODIFIED] Save Session ID for Phase 4
+        new_session_filename = f"session_id_phase4_{TIMESTAMP}.txt"
+        with open(new_session_filename, "w") as f:
             f.write(interaction.id)
+        print(f"🔗 [Session Updated] Saved to '{new_session_filename}'")
 
     except Exception as e:
         print(f"❌ Gemini Error: {e}")

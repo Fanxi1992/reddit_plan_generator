@@ -1,4 +1,5 @@
 import os
+import datetime
 from google import genai
 
 # -------------------------------------------------------------------------
@@ -6,6 +7,9 @@ from google import genai
 # -------------------------------------------------------------------------
 # API_KEY = os.environ.get("GOOGLE_API_KEY", "YOUR_API_KEY_HERE")
 MODEL_ID = "gemini-3-flash-preview"
+
+# [MODIFIED] 生成当前运行的时间戳
+TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
 client = genai.Client()
 
@@ -63,10 +67,11 @@ try:
     print("\n🤖 AI Response:")
     print(interaction.outputs[-1].text)
 
-    # Save ID for Phase 2
-    with open("session_id.txt", "w") as f:
+    # [MODIFIED] Save Session ID specifically for Phase 1 with Timestamp
+    session_filename = f"session_id_phase1_{TIMESTAMP}.txt"
+    with open(session_filename, "w") as f:
         f.write(interaction.id)
-    print(f"\n[Info] Session ID saved to 'session_id.txt'. Ready for Phase 2.")
+    print(f"\n[Info] Session ID saved to '{session_filename}'. Ready for Phase 2.")
 
 except Exception as e:
     print(f"\n❌ Error: {e}")

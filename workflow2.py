@@ -1,22 +1,36 @@
-
 import os
 import json
 import re
+import glob
+import datetime
 from google import genai
 
 # -------------------------------------------------------------------------
 # Configuration
 # -------------------------------------------------------------------------
-# API_KEY = os.environ.get("GOOGLE_API_KEY", "YOUR_API_KEY_HERE")
 MODEL_ID = "gemini-3-flash-preview"
+TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
-# Load the session ID from Phase 1
+# [MODIFIED] Helper function to find the latest file matching a pattern
+def get_latest_file(pattern):
+    files = glob.glob(pattern)
+    if not files:
+        return None
+    return max(files, key=os.path.getctime)
+
+# [MODIFIED] Load the LATEST Phase 1 Session ID
+latest_session_file = get_latest_file("session_id_phase1_*.txt")
+
 try:
-    with open("session_id.txt", "r") as f:
+    if not latest_session_file:
+        raise FileNotFoundError("No 'session_id_phase1_*.txt' found.")
+    
+    with open(latest_session_file, "r") as f:
         SESSION_ID = f.read().strip()
-    print(f"📂 Loaded Session ID: {SESSION_ID}")
-except FileNotFoundError:
-    print("❌ Error: 'session_id.txt' not found. Please run Phase 1 first.")
+    print(f"📂 Loaded Session ID from: {latest_session_file}")
+    print(f"🔗 ID: {SESSION_ID}")
+except Exception as e:
+    print(f"❌ Error loading session: {e}")
     exit()
 
 client = genai.Client()
@@ -89,25 +103,28 @@ try:
         json_str = json_match.group(1)
         subreddit_list = json.loads(json_str)
         
-        # Save JSON for the PRAW script (Phase 3)
-        with open("raw_subreddits.json", "w") as f:
+        # [MODIFIED] Save JSON with Timestamp
+        json_filename = f"raw_subreddits_{TIMESTAMP}.json"
+        with open(json_filename, "w") as f:
             json.dump(subreddit_list, f, indent=4)
-        print(f"\n📦 [File Created] 'raw_subreddits.json' containing {len(subreddit_list)} subs.")
-        print(f"   Sample: {subreddit_list[:5]}...")
+        print(f"\n📦 [File Created] '{json_filename}' containing {len(subreddit_list)} subs.")
     else:
         print("\n⚠️ Warning: Could not auto-extract JSON. Saving full text only.")
 
     # 2. Save the Report Text (Positioning)
     # We remove the JSON part from the report to make it clean
     report_text = re.sub(r"```json\s*\[.*?\]\s*```", "", full_response, flags=re.DOTALL).strip()
-
-    with open("project_part1_positioning.md", "w", encoding="utf-8") as f:
+    # [MODIFIED] Save Markdown with Timestamp
+    report_filename = f"project_part1_positioning_{TIMESTAMP}.md"
+    with open(report_filename, "w", encoding="utf-8") as f:
         f.write(report_text)
-    print(f"📄 [File Created] 'project_part1_positioning.md' (The Marketing Report).")
+    print(f"📄 [File Created] '{report_filename}'.")
 
-    # Update Session ID (Just in case ID rotates, though usually it stays same for the thread)
-    with open("session_id.txt", "w") as f:
+    # [MODIFIED] Save Updated Session ID for Phase 2
+    new_session_filename = f"session_id_phase2_{TIMESTAMP}.txt"
+    with open(new_session_filename, "w") as f:
         f.write(interaction.id)
+    print(f"🔗 [Session Updated] Saved to '{new_session_filename}'")
 
 
 
