@@ -197,6 +197,9 @@ class RunManager:
 
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
+            # Force UTF-8 for redirected stdout/stderr (Windows locale might be GBK which can't encode emojis).
+            env["PYTHONUTF8"] = "1"
+            env["PYTHONIOENCODING"] = "utf-8"
             env["PRODUCT_CONTEXT_FILE"] = str(product_path)
             env["PROMPTS_FILE"] = str(prompts_path)
 
@@ -206,7 +209,8 @@ class RunManager:
                     record.persist()
 
                     subprocess.run(
-                        [sys.executable, str(script_path)],
+                        # `-X utf8` ensures the child process uses UTF-8 even when stdout is redirected to a file.
+                        [sys.executable, "-X", "utf8", str(script_path)],
                         cwd=str(record.run_dir),
                         env=env,
                         stdout=log_file,
