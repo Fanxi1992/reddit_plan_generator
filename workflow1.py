@@ -31,7 +31,7 @@ CURRENT STAGE:
 Do not generate the full plan yet. Your priority right now is to fully understand the product background I provide.
 """
 
-PRODUCT_CONTEXT = """
+DEFAULT_PRODUCT_CONTEXT = """
 [Client Product Data]
 Product Name: DeepFocus
 Type: Chrome/Edge Browser Extension + Lightweight Desktop Client
@@ -44,8 +44,24 @@ Competitors: Forest, Cold Turkey, Opal.
 Key Differentiator: Competitors only "force lock" your device; we provide "peace of mind" (blocking distractions while catching missed info for you).
 """
 
+
+def load_product_context(default_text: str) -> str:
+    path = os.environ.get("PRODUCT_CONTEXT_FILE")
+    candidates = [
+        path,
+        os.path.join(os.path.dirname(__file__), "inputs", "product_context.md"),
+    ]
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate):
+            with open(candidate, "r", encoding="utf-8") as f:
+                return f.read().strip()
+    return default_text.strip()
+
+
+PRODUCT_CONTEXT = load_product_context(DEFAULT_PRODUCT_CONTEXT)
+
 # Assemble the input
-initial_input = f"{SYSTEM_PROMPT}\n\n{PRODUCT_CONTEXT}\n\nPlease confirm you understand the product and your role. Briefly summarize the core selling point of DeepFocus in one sentence (in English), and confirm you are ready for the next step."
+initial_input = f"{SYSTEM_PROMPT}\n\n{PRODUCT_CONTEXT}\n\nPlease confirm you understand the product and your role. Briefly summarize the core selling point of the product described above in one sentence (in English), and confirm you are ready for the next step."
 
 # -------------------------------------------------------------------------
 # Execution

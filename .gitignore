@@ -11,3 +11,4 @@ __pycache__/
 *.log
 *.sqlite3
 /.pytest_cache/
+runs/
