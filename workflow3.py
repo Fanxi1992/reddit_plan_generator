@@ -16,6 +16,30 @@ load_dotenv()
 MODEL_ID = "gemini-3-flash-preview"
 TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
+
+def load_prompts() -> dict[str, str]:
+    """Load per-run prompts from PROMPTS_FILE (JSON), if provided."""
+    prompts_file = os.environ.get("PROMPTS_FILE")
+    if not prompts_file:
+        return {}
+
+    try:
+        with open(prompts_file, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        if not isinstance(raw, dict):
+            return {}
+        return {k: v for k, v in raw.items() if isinstance(k, str) and isinstance(v, str)}
+    except Exception as e:
+        print(f"?? Warning: Failed to load PROMPTS_FILE='{prompts_file}': {e}")
+        return {}
+
+
+def render_prompt(template: str, *, rules_context: str) -> str:
+    return template.replace("{{rules_context}}", rules_context)
+
+
+PROMPTS = load_prompts()
+
 if not os.getenv("REDDIT_CLIENT_ID"):
     print("❌ Error: Missing Reddit credentials in .env")
     exit(1)
@@ -193,10 +217,15 @@ Example:
 """
 
     try:
+        override_template = PROMPTS.get("phase3_prompt")
+        phase3_prompt = (
+            render_prompt(override_template, rules_context=rules_context) if override_template else PHASE3_PROMPT
+        )
+
         interaction = client.interactions.create(
             model=MODEL_ID,
             previous_interaction_id=SESSION_ID,
-            input=PHASE3_PROMPT,
+            input=phase3_prompt,
         )
 
         full_response = interaction.outputs[-1].text

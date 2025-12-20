@@ -11,6 +11,26 @@ from google import genai
 MODEL_ID = "gemini-3-flash-preview"
 TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
+
+def load_prompts() -> dict[str, str]:
+    """Load per-run prompts from PROMPTS_FILE (JSON), if provided."""
+    prompts_file = os.environ.get("PROMPTS_FILE")
+    if not prompts_file:
+        return {}
+
+    try:
+        with open(prompts_file, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        if not isinstance(raw, dict):
+            return {}
+        return {k: v for k, v in raw.items() if isinstance(k, str) and isinstance(v, str)}
+    except Exception as e:
+        print(f"?? Warning: Failed to load PROMPTS_FILE='{prompts_file}': {e}")
+        return {}
+
+
+PROMPTS = load_prompts()
+
 # [MODIFIED] Helper function to find the latest file matching a pattern
 def get_latest_file(pattern):
     files = glob.glob(pattern)
@@ -78,11 +98,13 @@ Example format:
 print("🚀 Sending Phase 2 instructions (Positioning + List Gen)...")
 
 try:
+    phase2_prompt = PROMPTS.get("phase2_prompt", PHASE2_PROMPT)
+
     # Resume the session using previous_interaction_id
     interaction = client.interactions.create(
     model=MODEL_ID,
     previous_interaction_id=SESSION_ID,
-    input=PHASE2_PROMPT,
+    input=phase2_prompt,
     )
 
 

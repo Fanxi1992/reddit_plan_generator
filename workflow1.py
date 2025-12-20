@@ -1,4 +1,5 @@
 import os
+import json
 import datetime
 from google import genai
 
@@ -44,6 +45,35 @@ Competitors: Forest, Cold Turkey, Opal.
 Key Differentiator: Competitors only "force lock" your device; we provide "peace of mind" (blocking distractions while catching missed info for you).
 """
 
+DEFAULT_PHASE1_PROMPT = (
+    SYSTEM_PROMPT.strip()
+    + "\n\n{{product_context}}\n\n"
+    + "Please confirm you understand the product and your role. "
+    + "Briefly summarize the core selling point of the product described above in one sentence (in English), "
+    + "and confirm you are ready for the next step."
+)
+
+
+def load_prompts() -> dict[str, str]:
+    """Load per-run prompts from PROMPTS_FILE (JSON), if provided."""
+    prompts_file = os.environ.get("PROMPTS_FILE")
+    if not prompts_file:
+        return {}
+
+    try:
+        with open(prompts_file, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        if not isinstance(raw, dict):
+            return {}
+        return {k: v for k, v in raw.items() if isinstance(k, str) and isinstance(v, str)}
+    except Exception as e:
+        print(f"?? Warning: Failed to load PROMPTS_FILE='{prompts_file}': {e}")
+        return {}
+
+
+def render_prompt(template: str, *, product_context: str) -> str:
+    return template.replace("{{product_context}}", product_context)
+
 
 def load_product_context(default_text: str) -> str:
     path = os.environ.get("PRODUCT_CONTEXT_FILE")
@@ -59,9 +89,11 @@ def load_product_context(default_text: str) -> str:
 
 
 PRODUCT_CONTEXT = load_product_context(DEFAULT_PRODUCT_CONTEXT)
+PROMPTS = load_prompts()
 
-# Assemble the input
-initial_input = f"{SYSTEM_PROMPT}\n\n{PRODUCT_CONTEXT}\n\nPlease confirm you understand the product and your role. Briefly summarize the core selling point of the product described above in one sentence (in English), and confirm you are ready for the next step."
+# Assemble the input (support per-run override via PROMPTS_FILE)
+phase1_template = PROMPTS.get("phase1_prompt", DEFAULT_PHASE1_PROMPT)
+initial_input = render_prompt(phase1_template, product_context=PRODUCT_CONTEXT)
 
 # -------------------------------------------------------------------------
 # Execution

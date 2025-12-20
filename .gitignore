@@ -12,3 +12,11 @@ __pycache__/
 *.sqlite3
 /.pytest_cache/
 runs/
+session_id_phase*.txt
+raw_subreddits_*.json
+final_subreddits_*.json
+project_part1_positioning_*.md
+project_part2_strategy_*.md
+project_final_content_plan_*.md
+Phase3_Subreddit_Audit_*.xlsx
+Phase4_KPI_Analysis_*.xlsx
