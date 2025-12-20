@@ -7,7 +7,7 @@ from google import genai
 # Configuration
 # -------------------------------------------------------------------------
 # API_KEY = os.environ.get("GOOGLE_API_KEY", "YOUR_API_KEY_HERE")
-MODEL_ID = "gemini-3-flash-preview"
+MODEL_ID = "gemini-3-pro-preview"
 
 # [MODIFIED] 生成当前运行的时间戳
 TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")

@@ -8,7 +8,7 @@ from google import genai
 # -------------------------------------------------------------------------
 # Configuration
 # -------------------------------------------------------------------------
-MODEL_ID = "gemini-3-flash-preview"
+MODEL_ID = "gemini-3-pro-preview"
 TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
 

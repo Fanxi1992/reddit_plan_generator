@@ -13,7 +13,7 @@ from google import genai
 # 1. 配置与鉴权
 # ==========================================
 load_dotenv()
-MODEL_ID = "gemini-3-flash-preview"
+MODEL_ID = "gemini-3-pro-preview"
 TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
