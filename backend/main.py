@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from .prompts import load_default_prompts
-from .runner import RunAlreadyRunningError, RunManager, RunStatus
+from .runner import RunAlreadyRunningError, RunManager, RunNotFoundError, RunStatus
 from .schemas import PromptsResponse, RunCreateRequest, RunCreateResponse, RunStatusResponse
 from .storage import find_key_outputs, get_run_dir, validate_run_id
 
@@ -111,6 +111,35 @@ def get_run(run_id: str):
     )
 
 
+@app.post("/api/runs/{run_id}/cancel", response_model=RunStatusResponse)
+def cancel_run(run_id: str):
+    validate_run_id(run_id)
+
+    try:
+        record = RUNS.cancel_run(run_id)
+    except RunNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    run_dir = get_run_dir(run_id)
+    outputs = record.outputs or find_key_outputs(run_dir)
+    downloads = {k: f"/api/runs/{run_id}/download/{k}" for k in outputs.keys()}
+
+    return RunStatusResponse(
+        run_id=record.run_id,
+        status=record.status.value,
+        current_phase=record.current_phase,
+        run_dir=str(record.run_dir),
+        created_at=record.created_at.isoformat() if record.created_at else None,
+        started_at=record.started_at.isoformat() if record.started_at else None,
+        finished_at=record.finished_at.isoformat() if record.finished_at else None,
+        error=record.error,
+        outputs={k: v.name for k, v in outputs.items()},
+        downloads=downloads,
+    )
+
+
 @app.get("/api/runs/{run_id}/download/{kind}")
 def download_output(run_id: str, kind: str):
     validate_run_id(run_id)
@@ -129,4 +158,3 @@ def download_output(run_id: str, kind: str):
         media_type="text/markdown; charset=utf-8",
         filename=Path(path).name,
     )
-

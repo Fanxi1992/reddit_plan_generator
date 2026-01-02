@@ -38,6 +38,8 @@ function toCnStatus(status: RunStatusResponse['status']) {
       return '已完成'
     case 'failed':
       return '失败'
+    case 'cancelled':
+      return '已取消'
     default:
       return '未知'
   }
@@ -74,6 +76,8 @@ export default function App() {
   const [run, setRun] = useState<RunStatusResponse | null>(null)
   const [isStarting, setIsStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
+  const [isStopping, setIsStopping] = useState(false)
+  const [stopError, setStopError] = useState<string | null>(null)
 
   const [selectedOutput, setSelectedOutput] = useState<OutputKind>('final')
   const [outputMarkdown, setOutputMarkdown] = useState<Partial<Record<OutputKind, string>>>({})
@@ -81,7 +85,12 @@ export default function App() {
   const [outputError, setOutputError] = useState<string | null>(null)
 
   const isLocked =
-    isStarting || (runId !== null && run?.status !== 'succeeded' && run?.status !== 'failed')
+    isStarting ||
+    isStopping ||
+    (runId !== null &&
+      run?.status !== 'succeeded' &&
+      run?.status !== 'failed' &&
+      run?.status !== 'cancelled')
 
   const promptErrors = useMemo(() => validatePrompts(draftPrompts), [draftPrompts])
   const productError = productContext.trim() ? null : '不能为空'
@@ -224,6 +233,7 @@ export default function App() {
   async function startRun() {
     if (!defaultPrompts) return
     setStartError(null)
+    setStopError(null)
     setRun(null)
     setIsStarting(true)
 
@@ -250,6 +260,31 @@ export default function App() {
     }
   }
 
+  async function forceStopRun() {
+    if (!runId) return
+    const confirmed = window.confirm(
+      '确认强制停止当前任务并清除前端状态？\n\n提示：会尝试通知后端取消；若后端仍在运行，新任务可能会被拒绝。',
+    )
+    if (!confirmed) return
+
+    setStopError(null)
+    setIsStopping(true)
+
+    try {
+      await fetchJson<RunStatusResponse>(`/api/runs/${runId}/cancel`, {
+        method: 'POST',
+        timeoutMs: 20000,
+      })
+    } catch (e) {
+      const msg =
+        e instanceof ApiError ? e.message : '强制停止请求失败（可能后端离线）'
+      setStopError(`${msg}；已清除前端任务状态。`)
+    } finally {
+      setIsStopping(false)
+      clearRunLocal()
+    }
+  }
+
   function resetAllPrompts() {
     if (!defaultPrompts) return
     setDraftPrompts({ ...defaultPrompts })
@@ -260,10 +295,16 @@ export default function App() {
     setDraftPrompts((prev) => ({ ...prev, [key]: defaultPrompts[key] }))
   }
 
-  function clearRun() {
-    if (isLocked) return
+  function clearRunLocal() {
     setRunId(null)
     setRun(null)
+  }
+
+  function clearRun() {
+    if (isLocked) return
+    clearRunLocal()
+    setStartError(null)
+    setStopError(null)
   }
 
   return (
@@ -451,6 +492,22 @@ export default function App() {
                 >
                   一键运行
                 </button>
+                {runId ? (
+                  <button
+                    className="btn btn--danger"
+                    type="button"
+                    disabled={
+                      isStarting ||
+                      isStopping ||
+                      run?.status === 'succeeded' ||
+                      run?.status === 'failed' ||
+                      run?.status === 'cancelled'
+                    }
+                    onClick={forceStopRun}
+                  >
+                    {isStopping ? '正在停止…' : '强制停止'}
+                  </button>
+                ) : null}
                 <button
                   className="btn btn--ghost"
                   type="button"
@@ -466,6 +523,13 @@ export default function App() {
               <div className="alert alert--bad">
                 <div className="alert__title">启动失败</div>
                 <div className="alert__body">{startError}</div>
+              </div>
+            ) : null}
+
+            {stopError ? (
+              <div className="alert alert--bad">
+                <div className="alert__title">强制停止提示</div>
+                <div className="alert__body">{stopError}</div>
               </div>
             ) : null}
 

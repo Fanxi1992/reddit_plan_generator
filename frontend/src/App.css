@@ -142,6 +142,15 @@
   background: linear-gradient(135deg, #8b4dff, #b08cff);
 }
 
+.btn--danger {
+  background: linear-gradient(135deg, #ff3b5c, #ff8a3d);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn--danger:hover {
+  background: linear-gradient(135deg, #ff2a4f, #ff7a2b);
+}
+
 .btn--ghost {
   background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.08);

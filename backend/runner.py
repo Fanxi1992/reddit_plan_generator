@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -18,11 +19,20 @@ class RunAlreadyRunningError(RuntimeError):
     pass
 
 
+class RunNotFoundError(RuntimeError):
+    pass
+
+
+class RunCancelledError(RuntimeError):
+    pass
+
+
 class RunStatus(str, Enum):
     PENDING = "pending"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+    CANCELLED = "cancelled"
     UNKNOWN = "unknown"
 
 
@@ -70,11 +80,41 @@ def json_dumps_pretty(data: dict) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2)
 
 
+def terminate_process(process: subprocess.Popen, *, timeout_sec: float = 5.0) -> None:
+    try:
+        process.terminate()
+    except Exception:
+        return
+
+    try:
+        process.wait(timeout=timeout_sec)
+    except Exception:
+        pass
+
+    try:
+        process.kill()
+    except Exception:
+        return
+
+    try:
+        process.wait(timeout=timeout_sec)
+    except Exception:
+        return
+
+
+class RunControl:
+    def __init__(self) -> None:
+        self.cancel_event = threading.Event()
+        self.process_lock = threading.Lock()
+        self.process: subprocess.Popen | None = None
+
+
 class RunManager:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._execution_lock = threading.Lock()
         self._runs: dict[str, RunRecord] = {}
+        self._controls: dict[str, RunControl] = {}
 
     def start_run(
         self,
@@ -103,6 +143,7 @@ class RunManager:
 
             with self._lock:
                 self._runs[final_run_id] = record
+                self._controls[final_run_id] = RunControl()
 
             default_prompts = load_default_prompts()
             prompts = merge_prompts(default_prompts, prompt_overrides)
@@ -133,6 +174,41 @@ class RunManager:
 
             self._execution_lock.release()
             raise
+
+    def cancel_run(self, run_id: str) -> RunRecord:
+        validate_run_id(run_id)
+
+        record = self.get_run(run_id)
+        if not record:
+            raise RunNotFoundError("Run not found.")
+
+        with self._lock:
+            live_record = self._runs.get(run_id)
+            control = self._controls.get(run_id)
+
+        if live_record and live_record.status in (RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED):
+            return live_record
+
+        if record.status in (RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED):
+            return record
+
+        if control:
+            control.cancel_event.set()
+            with control.process_lock:
+                process = control.process
+            if process and process.poll() is None:
+                terminate_process(process)
+
+        target = live_record or record
+        target.status = RunStatus.CANCELLED
+        target.error = "Cancelled by user."
+        target.finished_at = datetime.datetime.now(datetime.UTC)
+        try:
+            target.persist()
+        except Exception:
+            pass
+
+        return target
 
     def get_run(self, run_id: str) -> RunRecord | None:
         validate_run_id(run_id)
@@ -188,6 +264,12 @@ class RunManager:
         log_path = record.run_dir / "run.log"
 
         try:
+            with self._lock:
+                control = self._controls.get(record.run_id)
+
+            if control and control.cancel_event.is_set():
+                raise RunCancelledError()
+
             record.status = RunStatus.RUNNING
             record.started_at = datetime.datetime.now(datetime.UTC)
             record.persist()
@@ -205,39 +287,86 @@ class RunManager:
 
             with log_path.open("a", encoding="utf-8") as log_file:
                 for script_path in WORKFLOW_SCRIPTS:
+                    if control and control.cancel_event.is_set():
+                        raise RunCancelledError()
+
                     record.current_phase = script_path.name
                     record.persist()
 
-                    subprocess.run(
+                    process = subprocess.Popen(
                         # `-X utf8` ensures the child process uses UTF-8 even when stdout is redirected to a file.
                         [sys.executable, "-X", "utf8", str(script_path)],
                         cwd=str(record.run_dir),
                         env=env,
                         stdout=log_file,
                         stderr=subprocess.STDOUT,
-                        check=True,
                     )
+
+                    if control:
+                        with control.process_lock:
+                            control.process = process
+
+                    try:
+                        while True:
+                            if control and control.cancel_event.is_set():
+                                terminate_process(process)
+                                raise RunCancelledError()
+
+                            ret = process.poll()
+                            if ret is not None:
+                                if ret != 0:
+                                    raise subprocess.CalledProcessError(ret, process.args)
+                                break
+
+                            time.sleep(0.25)
+                    finally:
+                        if control:
+                            with control.process_lock:
+                                if control.process is process:
+                                    control.process = None
+
+            if control and control.cancel_event.is_set():
+                raise RunCancelledError()
 
             record.outputs = find_key_outputs(record.run_dir)
             record.status = RunStatus.SUCCEEDED
             record.finished_at = datetime.datetime.now(datetime.UTC)
             record.persist()
 
+        except RunCancelledError:
+            record.status = RunStatus.CANCELLED
+            record.error = "Cancelled by user."
+            record.finished_at = datetime.datetime.now(datetime.UTC)
+            try:
+                record.persist()
+            except Exception:
+                pass
         except subprocess.CalledProcessError as e:
-            record.status = RunStatus.FAILED
-            record.error = f"{record.current_phase} failed with exit code {e.returncode}"
+            if control and control.cancel_event.is_set():
+                record.status = RunStatus.CANCELLED
+                record.error = "Cancelled by user."
+            else:
+                record.status = RunStatus.FAILED
+                record.error = f"{record.current_phase} failed with exit code {e.returncode}"
             record.finished_at = datetime.datetime.now(datetime.UTC)
             try:
                 record.persist()
             except Exception:
                 pass
         except Exception as e:
-            record.status = RunStatus.FAILED
-            record.error = str(e)
+            if control and control.cancel_event.is_set():
+                record.status = RunStatus.CANCELLED
+                record.error = "Cancelled by user."
+            else:
+                record.status = RunStatus.FAILED
+                record.error = str(e)
             record.finished_at = datetime.datetime.now(datetime.UTC)
             try:
                 record.persist()
             except Exception:
                 pass
         finally:
+            if control:
+                with control.process_lock:
+                    control.process = None
             self._execution_lock.release()

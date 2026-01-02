@@ -27,14 +27,14 @@ class RunCreateRequest(BaseModel):
 
 class RunCreateResponse(BaseModel):
     run_id: str
-    status: Literal["pending", "running", "succeeded", "failed", "unknown"]
+    status: Literal["pending", "running", "succeeded", "failed", "cancelled", "unknown"]
     downloads: dict[str, str] = Field(default_factory=dict)
     error: str | None = None
 
 
 class RunStatusResponse(BaseModel):
     run_id: str
-    status: Literal["pending", "running", "succeeded", "failed", "unknown"]
+    status: Literal["pending", "running", "succeeded", "failed", "cancelled", "unknown"]
     current_phase: str | None = None
     run_dir: str
     created_at: str | None = None
@@ -43,4 +43,3 @@ class RunStatusResponse(BaseModel):
     error: str | None = None
     outputs: dict[str, str] = Field(default_factory=dict)
     downloads: dict[str, str] = Field(default_factory=dict)
-

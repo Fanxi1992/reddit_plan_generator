@@ -6,7 +6,7 @@ export type PromptsResponse = {
   prompts: Record<string, string>
 }
 
-export type RunStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'unknown'
+export type RunStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'
 
 export type RunCreateRequest = {
   product_context_md: string
@@ -34,4 +34,3 @@ export type RunStatusResponse = {
   outputs: Record<string, string>
   downloads: Record<string, string>
 }
-

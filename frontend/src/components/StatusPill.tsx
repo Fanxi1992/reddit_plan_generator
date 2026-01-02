@@ -13,9 +13,9 @@ const CLASS_MAP: Record<Props['status'], string> = {
   running: 'pill--neutral',
   succeeded: 'pill--ok',
   failed: 'pill--bad',
+  cancelled: 'pill--neutral',
 }
 
 export default function StatusPill({ status, text }: Props) {
   return <span className={`pill ${CLASS_MAP[status]}`}>{text}</span>
 }
-
