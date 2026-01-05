@@ -13,7 +13,7 @@ from google import genai
 # 1. 配置与鉴权
 # ==========================================
 load_dotenv()
-MODEL_ID = "gemini-3-pro-preview"
+MODEL_ID = "gemini-3-flash-preview"
 TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
@@ -229,6 +229,8 @@ Example:
         )
 
         full_response = interaction.outputs[-1].text
+
+        print('打印一下workflow3的生成结果和对应的id',full_response, interaction.id)
         
         # 1. Save JSON
         json_match = re.search(r"```json\s*(\[.*?\])\s*```", full_response, re.DOTALL)

@@ -13,7 +13,7 @@ from google import genai
 # 1. 配置与初始化
 # ==========================================
 load_dotenv()
-MODEL_ID = "gemini-3-pro-preview"
+MODEL_ID = "gemini-3-flash-preview"
 TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
@@ -295,6 +295,10 @@ Please structure the response clearly with Markdown headers for each Subreddit.
             model=MODEL_ID,
             previous_interaction_id=SESSION_ID,
             input=phase4_prompt,
+            generation_config={
+        "temperature": 0.3,
+        "max_output_tokens": 20000,
+    }
         )
 
         full_response = interaction.outputs[-1].text
