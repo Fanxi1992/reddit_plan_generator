@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+from .chat_history import HISTORY_FILENAME
 from .prompts import load_default_prompts
 from .runner import RunAlreadyRunningError, RunManager, RunNotFoundError, RunStatus
 from .schemas import PromptsResponse, RunCreateRequest, RunCreateResponse, RunStatusResponse
@@ -82,20 +83,29 @@ def get_run(run_id: str):
             raise HTTPException(status_code=404, detail="Run not found.")
         status = RunStatus.UNKNOWN
         outputs = find_key_outputs(run_dir)
-        downloads = {
-            key: f"/api/runs/{run_id}/download/{key}"
-            for key in outputs.keys()
-        }
+        outputs_names = {k: v.name for k, v in outputs.items()}
+        downloads = {key: f"/api/runs/{run_id}/download/{key}" for key in outputs.keys()}
+
+        history_path = run_dir / HISTORY_FILENAME
+        if history_path.is_file():
+            outputs_names["history"] = history_path.name
+            downloads["history"] = f"/api/runs/{run_id}/download/history"
         return RunStatusResponse(
             run_id=run_id,
             status=status.value,
             run_dir=str(run_dir),
-            outputs={k: v.name for k, v in outputs.items()},
+            outputs=outputs_names,
             downloads=downloads,
         )
 
     outputs = record.outputs or find_key_outputs(run_dir)
+    outputs_names = {k: v.name for k, v in outputs.items()}
     downloads = {k: f"/api/runs/{run_id}/download/{k}" for k in outputs.keys()}
+
+    history_path = run_dir / HISTORY_FILENAME
+    if history_path.is_file():
+        outputs_names["history"] = history_path.name
+        downloads["history"] = f"/api/runs/{run_id}/download/history"
 
     return RunStatusResponse(
         run_id=record.run_id,
@@ -106,7 +116,7 @@ def get_run(run_id: str):
         started_at=record.started_at.isoformat() if record.started_at else None,
         finished_at=record.finished_at.isoformat() if record.finished_at else None,
         error=record.error,
-        outputs={k: v.name for k, v in outputs.items()},
+        outputs=outputs_names,
         downloads=downloads,
     )
 
@@ -124,7 +134,13 @@ def cancel_run(run_id: str):
 
     run_dir = get_run_dir(run_id)
     outputs = record.outputs or find_key_outputs(run_dir)
+    outputs_names = {k: v.name for k, v in outputs.items()}
     downloads = {k: f"/api/runs/{run_id}/download/{k}" for k in outputs.keys()}
+
+    history_path = run_dir / HISTORY_FILENAME
+    if history_path.is_file():
+        outputs_names["history"] = history_path.name
+        downloads["history"] = f"/api/runs/{run_id}/download/history"
 
     return RunStatusResponse(
         run_id=record.run_id,
@@ -135,8 +151,26 @@ def cancel_run(run_id: str):
         started_at=record.started_at.isoformat() if record.started_at else None,
         finished_at=record.finished_at.isoformat() if record.finished_at else None,
         error=record.error,
-        outputs={k: v.name for k, v in outputs.items()},
+        outputs=outputs_names,
         downloads=downloads,
+    )
+
+@app.get("/api/runs/{run_id}/download/history")
+def download_history(run_id: str):
+    validate_run_id(run_id)
+    run_dir = get_run_dir(run_id)
+
+    if not run_dir.is_dir():
+        raise HTTPException(status_code=404, detail="Run not found.")
+
+    path = run_dir / HISTORY_FILENAME
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="History file not available.")
+
+    return FileResponse(
+        path=str(path),
+        media_type="application/x-ndjson; charset=utf-8",
+        filename=path.name,
     )
 
 

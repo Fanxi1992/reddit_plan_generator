@@ -1,15 +1,23 @@
-import os
-import json
-import re
-import glob
+from __future__ import annotations
+
 import datetime
+import json
+import os
+import re
+from pathlib import Path
+
 from google import genai
+
+from backend.chat_history import append_message, get_history_path, load_history
 
 # -------------------------------------------------------------------------
 # Configuration
 # -------------------------------------------------------------------------
-MODEL_ID = "gemini-3-flash-preview"
+
+MODEL_ID = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")
 TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+client = genai.Client()
 
 
 def load_prompts() -> dict[str, str]:
@@ -19,48 +27,17 @@ def load_prompts() -> dict[str, str]:
         return {}
 
     try:
-        with open(prompts_file, "r", encoding="utf-8") as f:
-            raw = json.load(f)
+        raw = json.loads(Path(prompts_file).read_text(encoding="utf-8"))
         if not isinstance(raw, dict):
             return {}
         return {k: v for k, v in raw.items() if isinstance(k, str) and isinstance(v, str)}
     except Exception as e:
-        print(f"?? Warning: Failed to load PROMPTS_FILE='{prompts_file}': {e}")
+        print(f"Warning: Failed to load PROMPTS_FILE='{prompts_file}': {e}")
         return {}
 
 
-PROMPTS = load_prompts()
-
-# [MODIFIED] Helper function to find the latest file matching a pattern
-def get_latest_file(pattern):
-    files = glob.glob(pattern)
-    if not files:
-        return None
-    return max(files, key=os.path.getctime)
-
-# [MODIFIED] Load the LATEST Phase 1 Session ID
-latest_session_file = get_latest_file("session_id_phase1_*.txt")
-
-try:
-    if not latest_session_file:
-        raise FileNotFoundError("No 'session_id_phase1_*.txt' found.")
-    
-    with open(latest_session_file, "r") as f:
-        SESSION_ID = f.read().strip()
-    print(f"📂 Loaded Session ID from: {latest_session_file}")
-    print(f"🔗 ID: {SESSION_ID}")
-except Exception as e:
-    print(f"❌ Error loading session: {e}")
-    exit()
-
-client = genai.Client()
-
-# -------------------------------------------------------------------------
-# Prompt for Phase 2: Positioning Report + JSON List
-# -------------------------------------------------------------------------
-
 PHASE2_PROMPT = """
-Great. Now let's move to Phase 2. 
+Great. Now let's move to Phase 2.
 Based on the product context and role we established in the previous turn, please perform two tasks in this single response:
 
 ### TASK 1: Write Section 1 of the Marketing Plan (The Positioning)
@@ -79,76 +56,67 @@ Think broadly and categorize them mentally (but output a flat list):
 - **Competitor/Problem Spaces**: Where people discuss the problems this product solves.
 
 IMPORTANT FORMATTING RULE:
-At the very end of your response, provide the list of these 30+ subreddits in a STRICT JSON ARRAY format inside a code block. 
+At the very end of your response, provide the list of these 30+ subreddits in a STRICT JSON ARRAY format inside a code block.
 Do not include "r/" prefix in the values, just the name.
 Example format:
 ```json
 ["productivity", "webdev", "adhd", "SaaS"]
 
 ```
-
 """
 
-# -------------------------------------------------------------------------
 
-# Execution
+def main() -> int:
+    run_dir = Path.cwd()
+    history_path = get_history_path(run_dir)
+    history = load_history(history_path)
+    if not history:
+        print(f"Error: missing chat history at '{history_path}'. Run workflow1.py first.")
+        return 1
 
-# -------------------------------------------------------------------------
+    prompts = load_prompts()
+    phase2_prompt = (prompts.get("phase2_prompt", PHASE2_PROMPT) or "").strip()
+    if not phase2_prompt:
+        print("Error: phase2 prompt is empty.")
+        return 1
 
-print("🚀 Sending Phase 2 instructions (Positioning + List Gen)...")
+    print("Sending Phase 2 instructions (Positioning + List Gen)...")
 
-try:
-    phase2_prompt = PROMPTS.get("phase2_prompt", PHASE2_PROMPT)
+    try:
+        chat = client.chats.create(model=MODEL_ID, history=history)
+        response = chat.send_message(phase2_prompt)
+        full_response = response.text or ""
 
-    # Resume the session using previous_interaction_id
-    interaction = client.interactions.create(
-    model=MODEL_ID,
-    previous_interaction_id=SESSION_ID,
-    input=phase2_prompt,
-    )
+        append_message(history_path, role="user", text=phase2_prompt)
+        append_message(history_path, role="model", text=full_response)
 
+        print("\n" + "=" * 50)
+        print("Phase 2 Complete. Processing outputs...")
+        print("=" * 50)
 
-    full_response = interaction.outputs[-1].text
+        json_match = re.search(r"```json\s*(\[.*?\])\s*```", full_response, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+            subreddit_list = json.loads(json_str)
+            json_filename = f"raw_subreddits_{TIMESTAMP}.json"
+            Path(json_filename).write_text(
+                json.dumps(subreddit_list, ensure_ascii=False, indent=4),
+                encoding="utf-8",
+            )
+            print(f"\n[File Created] '{json_filename}' containing {len(subreddit_list)} subs.")
+        else:
+            print("\nWarning: Could not auto-extract JSON. Saving full text only.")
 
-    print("\n" + "="*50)
-    print("✅ Phase 2 Complete. Processing outputs...")
-    print("="*50)
+        report_text = re.sub(r"```json\s*\[.*?\]\s*```", "", full_response, flags=re.DOTALL).strip()
+        report_filename = f"project_part1_positioning_{TIMESTAMP}.md"
+        Path(report_filename).write_text(report_text + "\n", encoding="utf-8")
+        print(f"[File Created] '{report_filename}'.")
+        return 0
 
-    # -------------------------------------------------------------------------
-    # Output Handling: Split Text and JSON
-    # -------------------------------------------------------------------------
-
-    # 1. Extract JSON Block using Regex
-    json_match = re.search(r"```json\s*(\[.*?\])\s*```", full_response, re.DOTALL)
-
-    if json_match:
-        json_str = json_match.group(1)
-        subreddit_list = json.loads(json_str)
-        
-        # [MODIFIED] Save JSON with Timestamp
-        json_filename = f"raw_subreddits_{TIMESTAMP}.json"
-        with open(json_filename, "w") as f:
-            json.dump(subreddit_list, f, indent=4)
-        print(f"\n📦 [File Created] '{json_filename}' containing {len(subreddit_list)} subs.")
-    else:
-        print("\n⚠️ Warning: Could not auto-extract JSON. Saving full text only.")
-
-    # 2. Save the Report Text (Positioning)
-    # We remove the JSON part from the report to make it clean
-    report_text = re.sub(r"```json\s*\[.*?\]\s*```", "", full_response, flags=re.DOTALL).strip()
-    # [MODIFIED] Save Markdown with Timestamp
-    report_filename = f"project_part1_positioning_{TIMESTAMP}.md"
-    with open(report_filename, "w", encoding="utf-8") as f:
-        f.write(report_text)
-    print(f"📄 [File Created] '{report_filename}'.")
-
-    # [MODIFIED] Save Updated Session ID for Phase 2
-    new_session_filename = f"session_id_phase2_{TIMESTAMP}.txt"
-    with open(new_session_filename, "w") as f:
-        f.write(interaction.id)
-    print(f"🔗 [Session Updated] Saved to '{new_session_filename}'")
+    except Exception as e:
+        print(f"\nError: {e}")
+        return 1
 
 
-
-except Exception as e:
-    print(f"\n❌ Error: {e}")
+if __name__ == "__main__":
+    raise SystemExit(main())

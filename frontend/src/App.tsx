@@ -340,6 +340,14 @@ export default function App() {
                 >
                   复制
                 </button>
+                <a
+                  className="btn btn--ghost"
+                  href={`/api/runs/${runId}/download/history`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  下载历史
+                </a>
               </div>
             ) : null}
           </div>

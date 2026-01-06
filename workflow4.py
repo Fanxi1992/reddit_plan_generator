@@ -1,19 +1,24 @@
-import os
-import json
-import re
-import glob
-import praw
-import prawcore
-import pandas as pd
+from __future__ import annotations
+
 import datetime
+import json
+import os
+from pathlib import Path
+
+import pandas as pd
+import praw
 from dotenv import load_dotenv
 from google import genai
 
+from backend.chat_history import append_message, get_history_path, load_history
+
 # ==========================================
-# 1. 配置与初始化
+# 1) Config & init
 # ==========================================
+
 load_dotenv()
-MODEL_ID = "gemini-3-flash-preview"
+
+MODEL_ID = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")
 TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
@@ -24,13 +29,12 @@ def load_prompts() -> dict[str, str]:
         return {}
 
     try:
-        with open(prompts_file, "r", encoding="utf-8") as f:
-            raw = json.load(f)
+        raw = json.loads(Path(prompts_file).read_text(encoding="utf-8"))
         if not isinstance(raw, dict):
             return {}
         return {k: v for k, v in raw.items() if isinstance(k, str) and isinstance(v, str)}
     except Exception as e:
-        print(f"?? Warning: Failed to load PROMPTS_FILE='{prompts_file}': {e}")
+        print(f"Warning: Failed to load PROMPTS_FILE='{prompts_file}': {e}")
         return {}
 
 
@@ -41,38 +45,31 @@ def render_prompt(template: str, *, mined_context: str) -> str:
 PROMPTS = load_prompts()
 
 if not os.getenv("REDDIT_CLIENT_ID"):
-    print("❌ Error: Missing Reddit credentials in .env")
-    exit(1)
+    print("Error: Missing Reddit credentials in .env")
+    raise SystemExit(1)
 
-# Helper: Find latest file
-def get_latest_file(pattern):
-    files = glob.glob(pattern)
-    return max(files, key=os.path.getctime) if files else None
 
-# [MODIFIED] Load LATEST Phase 3 Session ID
-try:
-    latest_session_file = get_latest_file("session_id_phase3_*.txt")
-    if not latest_session_file: raise FileNotFoundError("No 'session_id_phase3_*.txt' found.")
-    
-    with open(latest_session_file, "r") as f:
-        SESSION_ID = f.read().strip()
-    print(f"📂 Loaded Session ID from: {latest_session_file}")
-except Exception as e:
-    print(f"❌ Error: {e}")
-    exit(1)
+def get_latest_file(pattern: str) -> Path | None:
+    matches = list(Path.cwd().glob(pattern))
+    if not matches:
+        return None
+    return max(matches, key=lambda p: p.stat().st_mtime)
 
-# [MODIFIED] Load LATEST Final Subreddit JSON
+
+# Load LATEST Final Subreddit JSON (Phase 3 output)
 try:
     latest_final_json = get_latest_file("final_subreddits_*.json")
-    if not latest_final_json: raise FileNotFoundError("No 'final_subreddits_*.json' found.")
+    if not latest_final_json:
+        raise FileNotFoundError("No 'final_subreddits_*.json' found.")
 
-    with open(latest_final_json, "r") as f:
-        target_subreddits = json.load(f)
-    print(f"🎯 Loaded Target Subreddits from: {latest_final_json}")
-    print(f"   List: {target_subreddits}")
+    target_subreddits = json.loads(latest_final_json.read_text(encoding="utf-8"))
+    if not isinstance(target_subreddits, list):
+        raise ValueError("final_subreddits json must be a JSON array.")
+    print(f"Loaded target subreddits from: {latest_final_json.name}")
+    print(f"List: {target_subreddits}")
 except Exception as e:
-    print(f"❌ Error: {e}")
-    exit(1)
+    print(f"Error: {e}")
+    raise SystemExit(1)
 
 
 reddit = praw.Reddit(
@@ -85,113 +82,97 @@ reddit = praw.Reddit(
 
 client = genai.Client()
 
+
 # ==========================================
-# 2. 辅助函数：评论树抓取 (Token 优化版)
+# 2) Helper: comment tree (token-optimized)
 # ==========================================
 
-def get_comment_tree_text(submission, limit_top_level=3, max_depth=1):
-    """
-    抓取指定帖子的评论树，返回格式化的字符串。
-    为了节省 Token，默认只抓前 3 条一级评论，深度为 1。
-    """
+def get_comment_tree_text(submission, limit_top_level: int = 3, max_depth: int = 1) -> str:
     buffer = ""
-    
-    # 这一步是为了消除 "MoreComments" 对象，防止报错，但限制加载数量以提速
     submission.comments.replace_more(limit=0)
-    
-    # 获取顶层评论
+
     top_level_comments = submission.comments[:limit_top_level]
-    
     if not top_level_comments:
         return "   (No comments found)"
 
     for i, comment in enumerate(top_level_comments, 1):
         try:
             author = comment.author.name if comment.author else "[Deleted]"
-            body = comment.body.replace('\n', ' ')[:200] # 限制单条评论长度
-            
-            # Level 0 (Root)
+            body = comment.body.replace("\n", " ")[:200]
             buffer += f"   [C{i}] {author} (Score: {comment.score}): {body}\n"
-            
-            # Level 1 (Replies) - 只有当 max_depth >= 1 时才抓取
+
             if max_depth >= 1 and len(comment.replies) > 0:
-                for reply in comment.replies[:2]: # 每个评论只看前2个回复
+                for reply in comment.replies[:2]:
                     r_author = reply.author.name if reply.author else "[Deleted]"
-                    r_body = reply.body.replace('\n', ' ')[:150]
+                    r_body = reply.body.replace("\n", " ")[:150]
                     buffer += f"      └─ {r_author}: {r_body}\n"
         except Exception:
             continue
-            
+
     return buffer
 
+
 # ==========================================
-# 3. 辅助函数：KPI 计算 (流量阈值)
+# 3) KPI calculation
 # ==========================================
 
-def calculate_kpi_metrics(post_iterator, limit=15):
-    """计算前 N 个帖子的平均指标 (跳过置顶)"""
-    upvotes = []
-    comments = []
+def calculate_kpi_metrics(post_iterator, limit: int = 15) -> tuple[int, int]:
+    upvotes: list[int] = []
+    comments: list[int] = []
     for post in post_iterator:
-        if post.stickied: continue
-        upvotes.append(post.score)
-        comments.append(post.num_comments)
-        if len(upvotes) >= limit: break
-    
-    if not upvotes: return 0, 0
-    return int(sum(upvotes)/len(upvotes)), int(sum(comments)/len(comments))
+        if getattr(post, "stickied", False):
+            continue
+        upvotes.append(int(getattr(post, "score", 0)))
+        comments.append(int(getattr(post, "num_comments", 0)))
+        if len(upvotes) >= limit:
+            break
+    if not upvotes:
+        return 0, 0
+    return int(sum(upvotes) / len(upvotes)), int(sum(comments) / len(comments))
+
 
 # ==========================================
-# 4. 核心逻辑：数据挖掘与组装
+# 4) Data mining & assembly
 # ==========================================
 
-def mine_subreddit_data(sub_list):
-    print(f"\n🚀 Starting Deep Dive Analysis for {len(sub_list)} subreddits...\n")
-    
-    # AI Context Buffer: 最终发给 Gemini 的大字符串
+def mine_subreddit_data(sub_list: list[str]) -> str:
+    print(f"\nStarting Deep Dive Analysis for {len(sub_list)} subreddits...\n")
+
     ai_buffer = "Here is the Deep Dive Data (Metrics + Style References) for the selected subreddits:\n\n"
-    
-    # 用于导出 KPI 表格的数据
-    kpi_export_data = []
+    kpi_export_data: list[dict[str, object]] = []
 
-    for idx, sub_name in enumerate(sub_list, 1):
+    for idx, raw_name in enumerate(sub_list, 1):
+        sub_name = str(raw_name).strip()
+        if not sub_name:
+            continue
+
         print(f"[{idx}/{len(sub_list)}] Mining r/{sub_name}...", end="", flush=True)
-        
+
         try:
             subreddit = reddit.subreddit(sub_name)
-            
-            # --- Part A: KPI Calculation (流量门槛) ---
-            # 计算 Hot, Week, Month 的 赞/评 双指标
+
             hot_up, hot_com = calculate_kpi_metrics(subreddit.hot(limit=25))
             week_up, week_com = calculate_kpi_metrics(subreddit.top(time_filter="week", limit=25))
             month_up, month_com = calculate_kpi_metrics(subreddit.top(time_filter="month", limit=25))
-            
-            # 计算互动率 (Engagement Ratio): 评论数 / 点赞数
-            # > 0.1 通常意味着高讨论度；< 0.05 意味着主要是看图/新闻
+
             eng_ratio = round(hot_com / hot_up, 3) if hot_up > 0 else 0
-            
-            # 计算 "长尾难度系数" (Month / Hot)
-            # 如果倍数很大（如10倍），说明只有极少数精品能留存，竞争极残酷
             retention_multiplier = round(month_up / hot_up, 1) if hot_up > 0 else 0
 
-            # 记录到 Excel 数据 (保存给人看)
-            kpi_export_data.append({
-                "Subreddit": sub_name,
-                "Hot_Avg_Upvotes": hot_up,
-                "Hot_Avg_Comments": hot_com,
-                "TopWeek_Avg_Upvotes": week_up,
-                "TopMonth_Avg_Upvotes": month_up,
-                "Engagement_Ratio": eng_ratio
-            })
+            kpi_export_data.append(
+                {
+                    "Subreddit": sub_name,
+                    "Hot_Avg_Upvotes": hot_up,
+                    "Hot_Avg_Comments": hot_com,
+                    "TopWeek_Avg_Upvotes": week_up,
+                    "TopMonth_Avg_Upvotes": month_up,
+                    "Engagement_Ratio": eng_ratio,
+                }
+            )
 
-            # --- 🌟 核心修改：写入更丰富的 AI Buffer ---
             ai_buffer += f"### TARGET SUBREDDIT: r/{sub_name}\n"
-            ai_buffer += f"**PART 1: TRAFFIC & DIFFICULTY METRICS**\n"
-            
-            # 1. 基础门槛
+            ai_buffer += "**PART 1: TRAFFIC & DIFFICULTY METRICS**\n"
             ai_buffer += f"- **Entry Level (Hot)**: Needs ~{hot_up} upvotes & ~{hot_com} comments to trend.\n"
-            
-            # 2. 互动偏好 (AI 需要这个来决定是写争议性观点还是发漂亮图)
+
             ai_buffer += f"- **Engagement Style**: Ratio is {eng_ratio}. "
             if eng_ratio > 0.15:
                 ai_buffer += "(High Discussion: Users love to argue/comment. Text posts work best.)\n"
@@ -200,7 +181,6 @@ def mine_subreddit_data(sub_list):
             else:
                 ai_buffer += "(Balanced: Mix of consumption and discussion.)\n"
 
-            # 3. 留存难度 (天花板)
             ai_buffer += f"- **Viral Ceiling (Top of Month)**: ~{month_up} upvotes.\n"
             ai_buffer += f"- **Difficulty Multiplier**: Top posts are {retention_multiplier}x bigger than Hot posts. "
             if retention_multiplier > 10:
@@ -208,127 +188,131 @@ def mine_subreddit_data(sub_list):
             else:
                 ai_buffer += "(Moderate Stability: Good content stays visible longer.)\n\n"
 
-            # --- Part B: Content Style References (保持不变) ---
-            ai_buffer += f"**PART 2: STYLE REFERENCE (Top 3 Posts from this Month)**\n"
+            ai_buffer += "**PART 2: STYLE REFERENCE (Top 3 Posts from this Month)**\n"
             top_posts = subreddit.top(time_filter="month", limit=10)
             count = 0
             for post in top_posts:
-                if post.stickied: continue
+                if getattr(post, "stickied", False):
+                    continue
                 count += 1
-                if count > 3: break 
-                
+                if count > 3:
+                    break
+
                 comment_tree_str = get_comment_tree_text(post, limit_top_level=3, max_depth=1)
-                selftext = post.selftext.replace('\n', ' ')
-                if len(selftext) > 400: selftext = selftext[:400] + "...(truncated)"
-                if not selftext: selftext = "[Image/Link Post Only]"
+                selftext = (post.selftext or "").replace("\n", " ")
+                if len(selftext) > 400:
+                    selftext = selftext[:400] + "...(truncated)"
+                if not selftext:
+                    selftext = "[Image/Link Post Only]"
 
                 ai_buffer += f"--- Ref Post #{count} ---\n"
                 ai_buffer += f"Title: {post.title}\n"
                 ai_buffer += f"Body: {selftext}\n"
                 ai_buffer += f"Comments Vibe:\n{comment_tree_str}\n"
-            
-            ai_buffer += "="*40 + "\n\n"
-            print(" ✅ Done")
+
+            ai_buffer += "=" * 40 + "\n\n"
+            print(" OK")
 
         except Exception as e:
-            print(f" ❌ Error ({e})")
+            print(f" Error ({e})")
             ai_buffer += f"### r/{sub_name}: Error scraping data ({e})\n\n"
 
-    # [MODIFIED] Export Excel with Timestamp
     if kpi_export_data:
         df = pd.DataFrame(kpi_export_data)
         excel_filename = f"Phase4_KPI_Analysis_{TIMESTAMP}.xlsx"
         df.to_excel(excel_filename, index=False)
-        print(f"\n📊 KPI Data saved to: {excel_filename}")
-    
+        print(f"\nKPI Data saved to: {excel_filename}")
+
     return ai_buffer
 
+
 # ==========================================
-# 5. Gemini 生成逻辑
+# 5) Gemini generation
 # ==========================================
 
-def run_phase4_generation(context_data):
-    print("\n🤖 Sending mined data to Gemini for Final Content Drafting...")
-
-    PHASE4_PROMPT = f"""
-{context_data}
+DEFAULT_PHASE4_PROMPT = """
+{{mined_context}}
 
 ### TASK: Phase 4 - Content Creation & KPI Strategy
 
 You are the "Reddit Ghostwriter". Above is the REAL data (KPIs + Style References) for our target subreddits.
 Your goal is to maximize the probability of our product (from Phase 1 context) trending in these communities.
 
-**Requirement 1: The Strategic Analysis Table & Legend**
-1. **The Table**: Create a comprehensive Markdown table using the "Traffic & Difficulty Metrics" provided.
-   - **Columns**:
-     1. **Subreddit**
-     2. **Difficulty Score**: (Assess based on the "Viral Ceiling" and "Difficulty Multiplier").
-     3. **Engagement Type**: (Based on the "Engagement Ratio" provided in metrics - e.g., "High Debate", "Visual/Lurker", "Balanced").
-     4. **Content Strategy Note**: **CRITICAL**. Do NOT give generic advice. 
-        - If "Engagement Type" is High Debate -> Suggest a controversial title or a question.
-        - If "Engagement Type" is Visual -> Suggest a UI screenshot or meme format.
-        - If "Difficulty Multiplier" is high -> Emphasize that the content must be "Best of Month" quality to survive.
+Requirement 1: The Strategic Analysis Table & Legend
+1. The Table: Create a comprehensive Markdown table using the "Traffic & Difficulty Metrics" provided.
+   - Columns:
+     1. Subreddit
+     2. Difficulty Score: (Assess based on the "Viral Ceiling" and "Difficulty Multiplier").
+     3. Engagement Type: (Based on the "Engagement Ratio" provided in metrics - e.g., "High Debate", "Visual/Lurker", "Balanced").
+     4. Content Strategy Note: CRITICAL. Do NOT give generic advice.
+        - If Engagement Type is High Debate -> Suggest a controversial title or a question.
+        - If Engagement Type is Visual -> Suggest a UI screenshot or meme format.
+        - If Difficulty Multiplier is high -> Emphasize that the content must be "Best of Month" quality to survive.
 
-2. **Methodology (The Formulas)**: 
-   Immediately following the table, add a compact section titled "**KPI Methodology**". Display the algorithm formulas used to derive the metrics. Keep explanations strictly concise and academic. 
-   **Format Requirements**:
-   - **Engagement Index ($E$)**: Formula: `Avg. Comments / Avg. Upvotes`. *Indicates community interaction depth.*
-   - **Viral Ceiling ($V$)**: Formula: `Top(Month)_avg / Hot_avg`. *Measures the volatility barrier for long-term retention.*
+2. Methodology (The Formulas):
+   Immediately following the table, add a compact section titled "KPI Methodology". Display the algorithm formulas used to derive the metrics. Keep explanations strictly concise and academic.
+   Format Requirements:
+   - Engagement Index ($E$): Formula: `Avg. Comments / Avg. Upvotes`. *Indicates community interaction depth.*
+   - Viral Ceiling ($V$): Formula: `Top(Month)_avg / Hot_avg`. *Measures the volatility barrier for long-term retention.*
 
-**Requirement 2: Native Content Drafting (The Core)**
+Requirement 2: Native Content Drafting (The Core)
 For EACH of the target subreddits, write a tailored draft.
-* **Format**: Determine if it should be a Text Post or a Link/Image Post based on the reference data.
-* **Title**: Must be click-worthy but NOT clickbait. Use the linguistic style of that sub (e.g., lowercase for tech subs, formal for academic subs).
-* **Body**: Write the full post body. **Do not be salesy.** Use the "Trojan Horse" technique: provide 80% value/story/insight, and mention the product only as a natural part of the solution (20%).
-* **Seeding Comments**: Write 3-5 distinct comments that we can use to "seed" the discussion. These should look like genuine user questions or reactions (e.g., "Skeptical but interested", "Asking about privacy", "Joke about the problem").
-    * *Format*: Display these as a simulated comment tree (e.g., User A asks -> User B answers).
+- Format: Determine if it should be a Text Post or a Link/Image Post based on the reference data.
+- Title: Must be click-worthy but NOT clickbait. Use the linguistic style of that sub (e.g., lowercase for tech subs, formal for academic subs).
+- Body: Write the full post body. Do not be salesy. Use the "Trojan Horse" technique: provide 80% value/story/insight, and mention the product only as a natural part of the solution (20%).
+- Seeding Comments: Write 3-5 distinct comments that we can use to "seed" the discussion. These should look like genuine user questions or reactions (e.g., "Skeptical but interested", "Asking about privacy", "Joke about the problem").
+  - Format: Display these as a simulated comment tree (e.g., User A asks -> User B answers).
 
-**Output Format**:
+Output Format:
 Please structure the response clearly with Markdown headers for each Subreddit.
 """
 
-    try:
-        override_template = PROMPTS.get("phase4_prompt")
-        phase4_prompt = render_prompt(override_template, mined_context=context_data) if override_template else PHASE4_PROMPT
 
-        interaction = client.interactions.create(
-            model=MODEL_ID,
-            previous_interaction_id=SESSION_ID,
-            input=phase4_prompt,
-            generation_config={
-        "temperature": 0.3,
-        "max_output_tokens": 20000,
-    }
-        )
+def run_phase4_generation(*, history_path: Path, history: list[dict[str, object]], context_data: str) -> str:
+    print("\nSending mined data to Gemini for Final Content Drafting...")
 
-        full_response = interaction.outputs[-1].text
-        
-        # [MODIFIED] Save Final Plan with Timestamp
-        final_filename = f"project_final_content_plan_{TIMESTAMP}.md"
-        with open(final_filename, "w", encoding="utf-8") as f:
-            f.write(full_response)
-        
-        print("\n" + "="*50)
-        print("🎉🎉🎉 WORKFLOW COMPLETE! 🎉🎉🎉")
-        print(f"📄 Final Report: '{final_filename}'")
-        print("="*50)
+    template = PROMPTS.get("phase4_prompt", DEFAULT_PHASE4_PROMPT)
+    phase4_prompt = render_prompt(template, mined_context=context_data)
 
-        # [MODIFIED] Save Session ID for Phase 4
-        new_session_filename = f"session_id_phase4_{TIMESTAMP}.txt"
-        with open(new_session_filename, "w") as f:
-            f.write(interaction.id)
-        print(f"🔗 [Session Updated] Saved to '{new_session_filename}'")
+    chat = client.chats.create(model=MODEL_ID, history=history)
+    response = chat.send_message(
+        phase4_prompt,
+        config={
+            "temperature": 0.3,
+            "max_output_tokens": 20000,
+        },
+    )
 
-    except Exception as e:
-        print(f"❌ Gemini Error: {e}")
+    full_response = response.text or ""
 
-# ==========================================
-# 6. 执行入口
-# ==========================================
+    append_message(history_path, role="user", text=phase4_prompt)
+    append_message(history_path, role="model", text=full_response)
+
+    return full_response
+
+
+def main() -> int:
+    run_dir = Path.cwd()
+    history_path = get_history_path(run_dir)
+    history = load_history(history_path)
+    if not history:
+        print(f"Error: missing chat history at '{history_path}'. Run workflow1.py and workflow2.py first.")
+        return 1
+
+    context_buffer = mine_subreddit_data([str(s) for s in target_subreddits])
+    full_response = run_phase4_generation(history_path=history_path, history=history, context_data=context_buffer)
+
+    final_filename = f"project_final_content_plan_{TIMESTAMP}.md"
+    Path(final_filename).write_text(full_response + "\n", encoding="utf-8")
+
+    print("\n" + "=" * 50)
+    print("WORKFLOW COMPLETE!")
+    print(f"Final Report: '{final_filename}'")
+    print("=" * 50)
+
+    return 0
+
 
 if __name__ == "__main__":
-    # 1. 挖掘数据 (KPI + 风格)
-    context_buffer = mine_subreddit_data(target_subreddits)
-    
-    # 2. 调用 AI 生成最终方案
-    run_phase4_generation(context_buffer)
+    raise SystemExit(main())
+

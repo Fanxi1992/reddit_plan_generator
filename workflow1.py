@@ -1,21 +1,23 @@
-import os
+from __future__ import annotations
+
 import json
-import datetime
+import os
+from pathlib import Path
+
 from google import genai
+
+from backend.chat_history import append_message, get_history_path, load_history
 
 # -------------------------------------------------------------------------
 # Configuration
 # -------------------------------------------------------------------------
-# API_KEY = os.environ.get("GOOGLE_API_KEY", "YOUR_API_KEY_HERE")
-MODEL_ID = "gemini-3-flash-preview"
 
-# [MODIFIED] 生成当前运行的时间戳
-TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+MODEL_ID = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")
 
 client = genai.Client()
 
 # -------------------------------------------------------------------------
-# Prompt & Context (All English to avoid UTF-8 bugs)
+# Prompt & Context
 # -------------------------------------------------------------------------
 
 SYSTEM_PROMPT = """
@@ -61,13 +63,12 @@ def load_prompts() -> dict[str, str]:
         return {}
 
     try:
-        with open(prompts_file, "r", encoding="utf-8") as f:
-            raw = json.load(f)
+        raw = json.loads(Path(prompts_file).read_text(encoding="utf-8"))
         if not isinstance(raw, dict):
             return {}
         return {k: v for k, v in raw.items() if isinstance(k, str) and isinstance(v, str)}
     except Exception as e:
-        print(f"?? Warning: Failed to load PROMPTS_FILE='{prompts_file}': {e}")
+        print(f"Warning: Failed to load PROMPTS_FILE='{prompts_file}': {e}")
         return {}
 
 
@@ -83,43 +84,42 @@ def load_product_context(default_text: str) -> str:
     ]
     for candidate in candidates:
         if candidate and os.path.isfile(candidate):
-            with open(candidate, "r", encoding="utf-8") as f:
-                return f.read().strip()
+            return Path(candidate).read_text(encoding="utf-8").strip()
     return default_text.strip()
 
 
-PRODUCT_CONTEXT = load_product_context(DEFAULT_PRODUCT_CONTEXT)
-PROMPTS = load_prompts()
+def main() -> int:
+    product_context = load_product_context(DEFAULT_PRODUCT_CONTEXT)
+    prompts = load_prompts()
 
-# Assemble the input (support per-run override via PROMPTS_FILE)
-phase1_template = PROMPTS.get("phase1_prompt", DEFAULT_PHASE1_PROMPT)
-initial_input = render_prompt(phase1_template, product_context=PRODUCT_CONTEXT)
+    phase1_template = prompts.get("phase1_prompt", DEFAULT_PHASE1_PROMPT)
+    initial_input = render_prompt(phase1_template, product_context=product_context)
 
-# -------------------------------------------------------------------------
-# Execution
-# -------------------------------------------------------------------------
-print("🚀 Connecting to Gemini Interactions API (English Mode)...")
+    print("Connecting to Gemini Chat API...")
+    try:
+        run_dir = Path.cwd()
+        history_path = get_history_path(run_dir)
+        history = load_history(history_path)
 
-try:
-    # Single call should be safe now that we are using English
-    interaction = client.interactions.create(
-        model=MODEL_ID,
-        input=initial_input,
-    )
+        chat = client.chats.create(model=MODEL_ID, history=history)
+        response = chat.send_message(initial_input)
+        response_text = response.text or ""
 
-    print("\n" + "="*50)
-    print("✅ Phase 1 Success: Session Created")
-    print(f"🔗 Interaction ID: {interaction.id}")
-    print("="*50)
-    
-    print("\n🤖 AI Response:")
-    print(interaction.outputs[-1].text)
+        append_message(history_path, role="user", text=initial_input)
+        append_message(history_path, role="model", text=response_text)
 
-    # [MODIFIED] Save Session ID specifically for Phase 1 with Timestamp
-    session_filename = f"session_id_phase1_{TIMESTAMP}.txt"
-    with open(session_filename, "w") as f:
-        f.write(interaction.id)
-    print(f"\n[Info] Session ID saved to '{session_filename}'. Ready for Phase 2.")
+        print("\n" + "=" * 50)
+        print("Phase 1 Complete")
+        print("=" * 50)
+        print("\nAI Response:")
+        print(response_text)
+        print(f"\n[Info] Chat history appended: {history_path}")
+        return 0
+    except Exception as e:
+        print(f"\nError: {e}")
+        return 1
 
-except Exception as e:
-    print(f"\n❌ Error: {e}")
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
