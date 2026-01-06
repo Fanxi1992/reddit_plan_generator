@@ -18,7 +18,7 @@ from backend.chat_history import append_message, get_history_path, load_history
 
 load_dotenv()
 
-MODEL_ID = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")
+MODEL_ID = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
 TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
