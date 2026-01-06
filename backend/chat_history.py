@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import deque
 import json
 from pathlib import Path
 from typing import Any
@@ -11,36 +12,66 @@ def get_history_path(run_dir: Path) -> Path:
     return run_dir / HISTORY_FILENAME
 
 
+def _parse_history_line(path: Path, line_no: int, raw: str) -> tuple[str, str]:
+    try:
+        obj = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in history file {path} at line {line_no}: {e}") from e
+
+    role = obj.get("role")
+    parts = obj.get("parts")
+    if role not in ("user", "model"):
+        raise ValueError(
+            f"Invalid history message role in {path} at line {line_no}: expected 'user' or 'model', got {role!r}"
+        )
+    if not isinstance(parts, list) or not parts:
+        raise ValueError(f"Invalid history message parts in {path} at line {line_no}: expected non-empty list")
+    first = parts[0]
+    if not isinstance(first, dict) or not isinstance(first.get("text"), str):
+        raise ValueError(f"Invalid history message parts[0].text in {path} at line {line_no}: expected string")
+
+    return role, first["text"]
+
+
 def load_history(path: Path) -> list[dict[str, Any]]:
     if not path.is_file():
         return []
 
     history: list[dict[str, Any]] = []
-    for line_no, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-        if not raw.strip():
-            continue
-        try:
-            obj = json.loads(raw)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in history file {path} at line {line_no}: {e}") from e
-
-        role = obj.get("role")
-        parts = obj.get("parts")
-        if role not in ("user", "model"):
-            raise ValueError(
-                f"Invalid history message role in {path} at line {line_no}: expected 'user' or 'model', got {role!r}"
-            )
-        if not isinstance(parts, list) or not parts:
-            raise ValueError(f"Invalid history message parts in {path} at line {line_no}: expected non-empty list")
-        first = parts[0]
-        if not isinstance(first, dict) or not isinstance(first.get("text"), str):
-            raise ValueError(
-                f"Invalid history message parts[0].text in {path} at line {line_no}: expected string"
-            )
-
-        history.append({"role": role, "parts": [{"text": first["text"]}]})
+    with path.open("r", encoding="utf-8") as f:
+        for line_no, raw in enumerate(f, start=1):
+            if not raw.strip():
+                continue
+            role, text = _parse_history_line(path, line_no, raw)
+            history.append({"role": role, "parts": [{"text": text}]})
 
     return history
+
+
+def load_history_messages(path: Path, *, limit: int | None = None) -> list[dict[str, str]]:
+    """
+    Load simplified chat history for UI rendering:
+    - Returns items like: {"role": "user"|"model", "text": "..."}.
+    - If limit is provided, returns only the latest N messages.
+    """
+    if not path.is_file():
+        return []
+
+    if limit is not None:
+        if limit <= 0:
+            raise ValueError("limit must be a positive integer")
+        buffer: deque[dict[str, str]] = deque(maxlen=limit)
+    else:
+        buffer = deque()
+
+    with path.open("r", encoding="utf-8") as f:
+        for line_no, raw in enumerate(f, start=1):
+            if not raw.strip():
+                continue
+            role, text = _parse_history_line(path, line_no, raw)
+            buffer.append({"role": role, "text": text})
+
+    return list(buffer)
 
 
 def append_message(path: Path, *, role: str, text: str) -> None:
@@ -50,4 +81,3 @@ def append_message(path: Path, *, role: str, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
-

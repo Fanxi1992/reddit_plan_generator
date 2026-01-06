@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import { ApiError, fetchJson } from './api/client'
 import type {
+  ChatHistoryResponse,
+  ChatMessage,
+  ChatSendResponse,
   HealthResponse,
   PromptsResponse,
   RunCreateResponse,
@@ -10,6 +13,7 @@ import type {
 import TextAreaField from './components/TextAreaField'
 import StatusPill from './components/StatusPill'
 import MarkdownPreview from './components/MarkdownPreview'
+import MarkdownBlock from './components/MarkdownBlock'
 import {
   diffPrompts,
   PROMPT_KEYS,
@@ -84,6 +88,13 @@ export default function App() {
   const [outputLoading, setOutputLoading] = useState<OutputKind | null>(null)
   const [outputError, setOutputError] = useState<string | null>(null)
 
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatDraft, setChatDraft] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const [chatSending, setChatSending] = useState(false)
+  const [chatError, setChatError] = useState<string | null>(null)
+  const chatEndRef = useRef<HTMLDivElement | null>(null)
+
   const isLocked =
     isStarting ||
     isStopping ||
@@ -91,6 +102,8 @@ export default function App() {
       run?.status !== 'succeeded' &&
       run?.status !== 'failed' &&
       run?.status !== 'cancelled')
+
+  const chatEnabled = !!runId && !!run && run.status !== 'pending' && run.status !== 'running'
 
   const promptErrors = useMemo(() => validatePrompts(draftPrompts), [draftPrompts])
   const productError = productContext.trim() ? null : '不能为空'
@@ -191,11 +204,48 @@ export default function App() {
     setOutputError(null)
   }, [runId])
 
+  useEffect(() => {
+    setChatMessages([])
+    setChatDraft('')
+    setChatError(null)
+    setChatLoading(false)
+    setChatSending(false)
+  }, [runId])
+
   const availableOutputs = useMemo(() => {
     const downloads = run?.downloads ?? {}
     const keys = Object.keys(downloads) as OutputKind[]
     return keys.filter((k) => k === 'part1' || k === 'part2' || k === 'final')
   }, [run])
+
+  async function loadChatHistory() {
+    if (!runId) return
+    setChatError(null)
+    setChatLoading(true)
+    try {
+      const data = await fetchJson<ChatHistoryResponse>(
+        `/api/runs/${runId}/chat/history?limit=200`,
+        { timeoutMs: 30000 },
+      )
+      setChatMessages(data.messages ?? [])
+    } catch (e) {
+      const msg =
+        e instanceof ApiError ? e.message : '无法加载聊天记录，请检查后端'
+      setChatError(msg)
+    } finally {
+      setChatLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!chatEnabled) return
+    void loadChatHistory()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatEnabled])
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [chatMessages.length])
 
   useEffect(() => {
     if (!runId) return
@@ -282,6 +332,40 @@ export default function App() {
     } finally {
       setIsStopping(false)
       clearRunLocal()
+    }
+  }
+
+  function isLongMessage(text: string) {
+    if (text.length > 2000) return true
+    const lines = text.split(/\r?\n/g)
+    return lines.length > 60
+  }
+
+  async function sendChat() {
+    if (!runId) return
+    if (!chatEnabled) return
+    if (chatSending) return
+
+    const message = chatDraft.trim()
+    if (!message) return
+
+    setChatError(null)
+    setChatSending(true)
+    setChatMessages((prev) => [...prev, { role: 'user', text: message }])
+    setChatDraft('')
+
+    try {
+      const res = await fetchJson<ChatSendResponse>(`/api/runs/${runId}/chat`, {
+        method: 'POST',
+        body: JSON.stringify({ message }),
+        timeoutMs: 120000,
+      })
+      setChatMessages((prev) => [...prev, { role: 'model', text: res.reply ?? '' }])
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : '追问失败，请检查后端/网络'
+      setChatError(msg)
+    } finally {
+      setChatSending(false)
     }
   }
 
@@ -644,6 +728,108 @@ export default function App() {
                 ) : (
                   <div className="empty">未加载预览（可点击上方 Tab 触发加载）。</div>
                 )}
+              </div>
+            )}
+          </div>
+
+          <div className="card">
+            <div className="card__header">
+              <div>
+                <div className="card__title">追问</div>
+                <div className="card__desc">
+                  任务结束后，可继续在当前 run 下聊天（会追加保存到 chat_history.jsonl）。
+                </div>
+              </div>
+              <div className="card__headerActions">
+                <button
+                  className="btn btn--ghost"
+                  type="button"
+                  disabled={!chatEnabled || chatLoading || chatSending}
+                  onClick={loadChatHistory}
+                >
+                  {chatLoading ? '加载中…' : '刷新'}
+                </button>
+              </div>
+            </div>
+
+            {!runId ? (
+              <div className="empty">还没有任务，先运行一次。</div>
+            ) : !run ? (
+              <div className="empty">正在加载任务状态…</div>
+            ) : run.status === 'running' || run.status === 'pending' ? (
+              <div className="empty">任务运行中：完成/失败/取消后可追问。</div>
+            ) : (
+              <div className="chat">
+                <div className="chat__log">
+                  {chatLoading ? (
+                    <div className="empty">正在加载聊天记录…</div>
+                  ) : chatMessages.length === 0 ? (
+                    <div className="empty">暂无聊天记录（你可以从这里开始追问）。</div>
+                  ) : (
+                    <div className="chat__msgs">
+                      {chatMessages.map((m, idx) => {
+                        const long = isLongMessage(m.text)
+                        const body =
+                          m.role === 'model' ? (
+                            <MarkdownBlock markdown={m.text} />
+                          ) : (
+                            <pre className="chatMsg__pre">{m.text}</pre>
+                          )
+                        return (
+                          <div className={`chatMsg chatMsg--${m.role}`} key={idx}>
+                            <div className="chatMsg__meta">{m.role === 'user' ? '你' : 'AI'}</div>
+                            {long ? (
+                              <details className="chatMsg__details">
+                                <summary className="chatMsg__summary">内容较长，点击展开</summary>
+                                <div className="chatMsg__body">{body}</div>
+                              </details>
+                            ) : (
+                              <div className="chatMsg__body">{body}</div>
+                            )}
+                          </div>
+                        )
+                      })}
+                      <div ref={chatEndRef} />
+                    </div>
+                  )}
+                </div>
+
+                {chatError ? (
+                  <div className="alert alert--bad">
+                    <div className="alert__title">追问失败</div>
+                    <div className="alert__body">{chatError}</div>
+                  </div>
+                ) : null}
+
+                <TextAreaField
+                  label="追问"
+                  value={chatDraft}
+                  onChange={setChatDraft}
+                  placeholder="例如：请解释 Final 里第 2 个 subreddit 的策略依据，并给出更不营销的标题备选。"
+                  helper="会带上本 run 的完整 history（chat_history.jsonl）作为上下文。"
+                  disabled={!chatEnabled || chatSending}
+                  rows={4}
+                  rightActions={
+                    <>
+                      <button
+                        className="btn btn--ghost"
+                        type="button"
+                        disabled={!chatDraft.trim() || !chatEnabled || chatSending}
+                        onClick={() => setChatDraft('')}
+                      >
+                        清空
+                      </button>
+                      <button
+                        className="btn btn--primary"
+                        type="button"
+                        disabled={!chatDraft.trim() || !chatEnabled || chatSending}
+                        onClick={sendChat}
+                      >
+                        {chatSending ? '发送中…' : '发送'}
+                      </button>
+                    </>
+                  }
+                />
               </div>
             )}
           </div>

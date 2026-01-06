@@ -2,15 +2,26 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import threading
 
 from fastapi import FastAPI, HTTPException
+from fastapi import Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from google import genai
 
-from .chat_history import HISTORY_FILENAME
+from .chat_history import HISTORY_FILENAME, append_message, get_history_path, load_history, load_history_messages
 from .prompts import load_default_prompts
 from .runner import RunAlreadyRunningError, RunManager, RunNotFoundError, RunStatus
-from .schemas import PromptsResponse, RunCreateRequest, RunCreateResponse, RunStatusResponse
+from .schemas import (
+    ChatHistoryResponse,
+    ChatSendRequest,
+    ChatSendResponse,
+    PromptsResponse,
+    RunCreateRequest,
+    RunCreateResponse,
+    RunStatusResponse,
+ )
 from .storage import find_key_outputs, get_run_dir, validate_run_id
 
 app = FastAPI(title="Reddit Workflow Backend", version="0.1.0")
@@ -29,6 +40,25 @@ app.add_middleware(
 )
 
 RUNS = RunManager()
+GENAI = genai.Client()
+
+_chat_locks: dict[str, threading.Lock] = {}
+_chat_locks_lock = threading.Lock()
+
+
+def _get_chat_lock(run_id: str) -> threading.Lock:
+    with _chat_locks_lock:
+        lock = _chat_locks.get(run_id)
+        if lock is None:
+            lock = threading.Lock()
+            _chat_locks[run_id] = lock
+        return lock
+
+
+def _ensure_run_not_active(run_id: str) -> None:
+    record = RUNS.get_run(run_id)
+    if record and record.status in (RunStatus.PENDING, RunStatus.RUNNING):
+        raise HTTPException(status_code=409, detail="Run is still in progress.")
 
 
 @app.get("/api/health")
@@ -172,6 +202,57 @@ def download_history(run_id: str):
         media_type="application/x-ndjson; charset=utf-8",
         filename=path.name,
     )
+
+
+@app.get("/api/runs/{run_id}/chat/history", response_model=ChatHistoryResponse)
+def get_chat_history(run_id: str, limit: int = Query(default=200, ge=1, le=2000)):
+    validate_run_id(run_id)
+    run_dir = get_run_dir(run_id)
+
+    if not run_dir.is_dir():
+        raise HTTPException(status_code=404, detail="Run not found.")
+
+    history_path = get_history_path(run_dir)
+    try:
+        messages = load_history_messages(history_path, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return ChatHistoryResponse(messages=messages)
+
+
+@app.post("/api/runs/{run_id}/chat", response_model=ChatSendResponse)
+def chat(run_id: str, payload: ChatSendRequest):
+    validate_run_id(run_id)
+    run_dir = get_run_dir(run_id)
+
+    if not run_dir.is_dir():
+        raise HTTPException(status_code=404, detail="Run not found.")
+
+    _ensure_run_not_active(run_id)
+
+    history_path = get_history_path(run_dir)
+    lock = _get_chat_lock(run_id)
+    with lock:
+        try:
+            history = load_history(history_path)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        try:
+            chat_session = GENAI.chats.create(model=os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview"), history=history)
+            response = chat_session.send_message(payload.message)
+            reply = response.text or ""
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        try:
+            append_message(history_path, role="user", text=payload.message)
+            append_message(history_path, role="model", text=reply)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to persist chat history: {e}")
+
+    return ChatSendResponse(reply=reply)
 
 
 @app.get("/api/runs/{run_id}/download/{kind}")

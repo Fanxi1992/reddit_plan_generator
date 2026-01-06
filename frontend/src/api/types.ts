@@ -34,3 +34,22 @@ export type RunStatusResponse = {
   outputs: Record<string, string>
   downloads: Record<string, string>
 }
+
+export type ChatRole = 'user' | 'model'
+
+export type ChatMessage = {
+  role: ChatRole
+  text: string
+}
+
+export type ChatHistoryResponse = {
+  messages: ChatMessage[]
+}
+
+export type ChatSendRequest = {
+  message: string
+}
+
+export type ChatSendResponse = {
+  reply: string
+}

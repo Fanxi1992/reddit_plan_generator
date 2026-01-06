@@ -43,3 +43,20 @@ class RunStatusResponse(BaseModel):
     error: str | None = None
     outputs: dict[str, str] = Field(default_factory=dict)
     downloads: dict[str, str] = Field(default_factory=dict)
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "model"]
+    text: str
+
+
+class ChatHistoryResponse(BaseModel):
+    messages: list[ChatMessage] = Field(default_factory=list)
+
+
+class ChatSendRequest(BaseModel):
+    message: str = Field(..., min_length=1, description="User message to append to the run chat history.")
+
+
+class ChatSendResponse(BaseModel):
+    reply: str
