@@ -1,10 +1,20 @@
-export type PromptKey = 'phase1_prompt' | 'phase2_prompt' | 'phase3_prompt' | 'phase4_prompt'
+export type PromptKey =
+  | 'brief_prompt'
+  | 'dossier_prompt'
+  | 'post_draft_prompt'
+  | 'mod_review_prompt'
+  | 'revise_prompt'
+  | 'native_polish_prompt'
+  | 'engagement_prompt'
 
 export const PROMPT_KEYS: PromptKey[] = [
-  'phase1_prompt',
-  'phase2_prompt',
-  'phase3_prompt',
-  'phase4_prompt',
+  'brief_prompt',
+  'dossier_prompt',
+  'post_draft_prompt',
+  'mod_review_prompt',
+  'revise_prompt',
+  'native_polish_prompt',
+  'engagement_prompt',
 ]
 
 export type PromptMeta = {
@@ -16,32 +26,71 @@ export type PromptMeta = {
 
 export const PROMPT_METAS: PromptMeta[] = [
   {
-    key: 'phase1_prompt',
-    title: '阶段 1：产品理解（建立会话）',
+    key: 'brief_prompt',
+    title: '阶段 0：产品 Brief 抽取',
     description:
-      '用于让模型理解产品背景并创建会话（interaction id）。必须包含产品占位符。',
-    requiredPlaceholders: ['{{product_context}}'],
+      '从前置资料中抽取“可执行的产品 brief”（不应引用原文）。必须包含占位符。',
+    requiredPlaceholders: ['{{pre_materials}}'],
   },
   {
-    key: 'phase2_prompt',
-    title: '阶段 2：定位 + Subreddit 候选列表',
+    key: 'dossier_prompt',
+    title: '阶段 1：Subreddit Dossier（风格/规则/禁忌）',
     description:
-      '生成定位分析（Markdown）+ 30+ 候选 subreddit（JSON code block）。',
-    requiredPlaceholders: [],
+      '基于抓取到的 meta + rules + 语料片段，生成该 sub 的写作/互动指南。',
+    requiredPlaceholders: [
+      '{{subreddit_name}}',
+      '{{subreddit_meta}}',
+      '{{subreddit_rules}}',
+      '{{corpus_excerpt}}',
+    ],
   },
   {
-    key: 'phase3_prompt',
-    title: '阶段 3：规则审计后筛选 + 社区策略',
-    description:
-      '根据 PRAW 抓取的真实规则/订阅数等数据，筛选 Top 5 并写策略。必须包含规则上下文占位符。',
-    requiredPlaceholders: ['{{rules_context}}'],
+    key: 'post_draft_prompt',
+    title: '阶段 2：Post 初稿（v1）',
+    description: '基于产品 brief + dossier，生成单一最佳版本的 post 初稿。',
+    requiredPlaceholders: [
+      '{{subreddit_name}}',
+      '{{product_brief}}',
+      '{{subreddit_dossier}}',
+    ],
   },
   {
-    key: 'phase4_prompt',
-    title: '阶段 4：KPI 分析 + 内容草稿',
+    key: 'mod_review_prompt',
+    title: '阶段 3：Mod 审核（Pass/Fail）',
+    description: '站在版主视角逐条对照规则，给出是否会删帖与改进建议。',
+    requiredPlaceholders: [
+      '{{subreddit_name}}',
+      '{{subreddit_rules}}',
+      '{{subreddit_dossier}}',
+      '{{post_draft}}',
+    ],
+  },
+  {
+    key: 'revise_prompt',
+    title: '阶段 4：合规修订（v2）',
+    description: '根据 mod 审核结果，输出更安全的 v2 版本。',
+    requiredPlaceholders: ['{{subreddit_name}}', '{{mod_review}}', '{{post_draft}}'],
+  },
+  {
+    key: 'native_polish_prompt',
+    title: '阶段 5：Reddit-native 打磨（Final）',
+    description: '去营销味、增强真实感与互动钩子（不刻意制造错字）。',
+    requiredPlaceholders: [
+      '{{subreddit_name}}',
+      '{{subreddit_dossier}}',
+      '{{post_revision}}',
+    ],
+  },
+  {
+    key: 'engagement_prompt',
+    title: '阶段 6：互动文案包（OP-only）',
     description:
-      '根据 KPI 与本月热帖风格参考，生成最终内容方案与种子评论。必须包含挖掘上下文占位符。',
-    requiredPlaceholders: ['{{mined_context}}'],
+      '生成 OP 可用的首评/补充评论 + 回复模板（不伪装其他用户）。',
+    requiredPlaceholders: [
+      '{{subreddit_name}}',
+      '{{subreddit_dossier}}',
+      '{{post_final}}',
+    ],
   },
 ]
 

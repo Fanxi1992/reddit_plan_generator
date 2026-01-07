@@ -33,17 +33,26 @@ def get_latest_file(run_dir: Path, pattern: str) -> Path | None:
 
 
 def find_key_outputs(run_dir: Path) -> dict[str, Path]:
+    """
+    Discover key artifacts for the paid single-subreddit workflow.
+    Files use stable names within a run directory.
+    """
     outputs: dict[str, Path] = {}
-    part1 = get_latest_file(run_dir, "project_part1_positioning_*.md")
-    part2 = get_latest_file(run_dir, "project_part2_strategy_*.md")
-    final = get_latest_file(run_dir, "project_final_content_plan_*.md")
 
-    if part1:
-        outputs["part1"] = part1
-    if part2:
-        outputs["part2"] = part2
-    if final:
-        outputs["final"] = final
+    candidates: dict[str, str] = {
+        "post_final": "post_final.md",
+        "engagement_kit": "engagement_kit.md",
+        "subreddit_dossier": "subreddit_dossier.md",
+        "mod_review": "mod_review.md",
+        "post_v1": "post_v1.md",
+        "post_v2": "post_v2.md",
+        "product_brief": "product_brief.md",
+    }
+
+    for key, filename in candidates.items():
+        path = run_dir / filename
+        if path.is_file():
+            outputs[key] = path
 
     return outputs
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -10,6 +11,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
+from google import genai
+
+from .chat_history import append_message, get_history_path
 from .paths import WORKFLOW_SCRIPTS
 from .prompts import load_default_prompts, merge_prompts, write_prompts_file
 from .storage import ensure_runs_dir, find_key_outputs, get_run_dir, read_json_if_exists, validate_run_id
@@ -119,7 +123,9 @@ class RunManager:
     def start_run(
         self,
         *,
-        product_context_md: str,
+        target_subreddit: str,
+        pre_materials: str,
+        options: dict | None,
         prompt_overrides: dict[str, str] | None,
         run_id: str | None,
         wait: bool,
@@ -149,11 +155,23 @@ class RunManager:
             prompts = merge_prompts(default_prompts, prompt_overrides)
 
             if wait:
-                self._run(record, product_context_md=product_context_md, prompts=prompts)
+                self._run(
+                    record,
+                    target_subreddit=target_subreddit,
+                    pre_materials=pre_materials,
+                    options=options or {},
+                    prompts=prompts,
+                )
             else:
                 thread = threading.Thread(
                     target=self._run,
-                    kwargs={"record": record, "product_context_md": product_context_md, "prompts": prompts},
+                    kwargs={
+                        "record": record,
+                        "target_subreddit": target_subreddit,
+                        "pre_materials": pre_materials,
+                        "options": options or {},
+                        "prompts": prompts,
+                    },
                     daemon=True,
                 )
                 thread.start()
@@ -258,8 +276,18 @@ class RunManager:
         )
         return record
 
-    def _run(self, record: RunRecord, *, product_context_md: str, prompts: dict[str, str]) -> None:
-        product_path = record.run_dir / "product_context.md"
+    def _run(
+        self,
+        record: RunRecord,
+        *,
+        target_subreddit: str,
+        pre_materials: str,
+        options: dict,
+        prompts: dict[str, str],
+    ) -> None:
+        config_path = record.run_dir / "run_config.json"
+        brief_md_path = record.run_dir / "product_brief.md"
+        brief_json_path = record.run_dir / "product_brief.json"
         prompts_path = record.run_dir / "prompts.json"
         log_path = record.run_dir / "run.log"
 
@@ -274,7 +302,16 @@ class RunManager:
             record.started_at = datetime.datetime.now(datetime.UTC)
             record.persist()
 
-            product_path.write_text(product_context_md.strip() + "\n", encoding="utf-8")
+            config_path.write_text(
+                json_dumps_pretty(
+                    {
+                        "target_subreddit": target_subreddit,
+                        "options": options,
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
             write_prompts_file(prompts_path, prompts)
 
             env = os.environ.copy()
@@ -282,10 +319,47 @@ class RunManager:
             # Force UTF-8 for redirected stdout/stderr (Windows locale might be GBK which can't encode emojis).
             env["PYTHONUTF8"] = "1"
             env["PYTHONIOENCODING"] = "utf-8"
-            env["PRODUCT_CONTEXT_FILE"] = str(product_path)
             env["PROMPTS_FILE"] = str(prompts_path)
+            env["RUN_CONFIG_FILE"] = str(config_path)
 
             with log_path.open("a", encoding="utf-8") as log_file:
+                # ------------------------------------------------------------
+                # Stage 0: Extract product brief (raw pre-materials are NOT persisted)
+                # ------------------------------------------------------------
+                if control and control.cancel_event.is_set():
+                    raise RunCancelledError()
+
+                record.current_phase = "stage0_brief"
+                record.persist()
+                log_file.write("[stage0_brief] Extracting product brief (raw pre-materials are not persisted)\n")
+                log_file.flush()
+
+                brief_text = generate_product_brief(prompts["brief_prompt"], pre_materials=pre_materials)
+                brief_json = extract_json_object(brief_text)
+                brief_md = strip_json_code_blocks(brief_text).strip()
+                if not brief_md:
+                    brief_md = (brief_text or "").strip()
+                if brief_md:
+                    brief_md_path.write_text(brief_md + "\n", encoding="utf-8")
+                if brief_json is not None:
+                    brief_json_path.write_text(json_dumps_pretty(brief_json) + "\n", encoding="utf-8")
+
+                # Seed chat history with the extracted brief so subsequent stages and /chat share context.
+                history_path = get_history_path(record.run_dir)
+                append_message(
+                    history_path,
+                    role="user",
+                    text=(
+                        "Context note: upfront pre-materials were provided out-of-band and are not stored. "
+                        "Use ONLY the following extracted Product Brief as authoritative context for this run.\n\n"
+                        f"Target Subreddit: r/{target_subreddit.strip()}\n\n"
+                        f"{brief_md}"
+                    ),
+                )
+
+                log_file.write("[stage0_brief] Saved product_brief.md/product_brief.json and seeded chat history\n")
+                log_file.flush()
+
                 for script_path in WORKFLOW_SCRIPTS:
                     if control and control.cancel_event.is_set():
                         raise RunCancelledError()
@@ -370,3 +444,36 @@ class RunManager:
                 with control.process_lock:
                     control.process = None
             self._execution_lock.release()
+
+
+def strip_json_code_blocks(text: str) -> str:
+    return re.sub(r"```json\s*\{.*?\}\s*```", "", text, flags=re.DOTALL)
+
+
+def extract_json_object(text: str) -> dict | None:
+    match = re.search(r"```json\s*(\{.*?\})\s*```", text, flags=re.DOTALL)
+    if not match:
+        return None
+    import json
+
+    try:
+        obj = json.loads(match.group(1))
+    except Exception:
+        return None
+    return obj if isinstance(obj, dict) else None
+
+
+def generate_product_brief(template: str, *, pre_materials: str) -> str:
+    model_id = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
+    prompt = template.replace("{{pre_materials}}", pre_materials.strip())
+
+    client = genai.Client()
+    chat = client.chats.create(model=model_id, history=[])
+    response = chat.send_message(
+        prompt,
+        config={
+            "temperature": 0.2,
+            "max_output_tokens": 4096,
+        },
+    )
+    return response.text or ""

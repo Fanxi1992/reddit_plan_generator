@@ -74,8 +74,11 @@ def get_prompts():
 @app.post("/api/runs", response_model=RunCreateResponse)
 def create_run(payload: RunCreateRequest):
     try:
+        options = payload.options.model_dump() if hasattr(payload.options, "model_dump") else payload.options.dict()
         record = RUNS.start_run(
-            product_context_md=payload.product_context_md,
+            target_subreddit=payload.target_subreddit,
+            pre_materials=payload.pre_materials,
+            options=options,
             prompt_overrides=payload.prompt_overrides,
             run_id=payload.run_id,
             wait=payload.wait,
@@ -87,11 +90,8 @@ def create_run(payload: RunCreateRequest):
 
     downloads: dict[str, str] = {}
     if payload.wait and record.status == RunStatus.SUCCEEDED:
-        downloads = {
-            "part1": f"/api/runs/{record.run_id}/download/part1",
-            "part2": f"/api/runs/{record.run_id}/download/part2",
-            "final": f"/api/runs/{record.run_id}/download/final",
-        }
+        outputs = record.outputs or find_key_outputs(get_run_dir(record.run_id))
+        downloads = {k: f"/api/runs/{record.run_id}/download/{k}" for k in outputs.keys()}
 
     return RunCreateResponse(
         run_id=record.run_id,

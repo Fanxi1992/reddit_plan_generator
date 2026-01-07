@@ -8,12 +8,65 @@ from pydantic import BaseModel, Field
 class PromptsResponse(BaseModel):
     prompts: dict[str, str]
 
+TopTimeFilter = Literal["day", "week", "month", "year", "all"]
+
+
+class RunOptions(BaseModel):
+    top_time_filter: TopTimeFilter = Field(
+        default="month",
+        description="Time filter for subreddit.top().",
+    )
+    top_posts_limit: int = Field(
+        default=20,
+        ge=1,
+        le=50,
+        description="Number of top posts to sample from subreddit.top().",
+    )
+    hot_posts_limit: int = Field(
+        default=8,
+        ge=0,
+        le=25,
+        description="Number of hot posts to additionally sample from subreddit.hot().",
+    )
+    comments_per_post: int = Field(
+        default=7,
+        ge=1,
+        le=15,
+        description="Top-level comments to sample per post (approx).",
+    )
+    replies_per_comment: int = Field(
+        default=2,
+        ge=0,
+        le=5,
+        description="Replies to sample per selected top-level comment.",
+    )
+    comment_reply_depth: int = Field(
+        default=2,
+        ge=1,
+        le=2,
+        description="Max comment depth to include (1=top-level only, 2=include one reply level).",
+    )
+
 
 class RunCreateRequest(BaseModel):
-    product_context_md: str = Field(..., min_length=1, description="English product context in Markdown.")
+    target_subreddit: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Locked target subreddit name (without r/).",
+    )
+    pre_materials: str = Field(
+        ...,
+        min_length=1,
+        description="Upfront materials (notes/docs). Raw text will NOT be persisted; only the extracted brief is stored.",
+    )
+    options: RunOptions = Field(
+        default_factory=RunOptions,
+        description="Sampling options for subreddit corpus scraping.",
+    )
     prompt_overrides: dict[str, str] = Field(
         default_factory=dict,
-        description="Override any of the default prompts by key (phase1_prompt..phase4_prompt).",
+        description="Override any of the default prompts by key.",
     )
     run_id: str | None = Field(
         default=None,

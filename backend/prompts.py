@@ -6,16 +6,23 @@ from pathlib import Path
 from .paths import DEFAULT_PROMPTS_PATH
 
 PROMPT_KEYS: tuple[str, ...] = (
-    "phase1_prompt",
-    "phase2_prompt",
-    "phase3_prompt",
-    "phase4_prompt",
+    "brief_prompt",
+    "dossier_prompt",
+    "post_draft_prompt",
+    "mod_review_prompt",
+    "revise_prompt",
+    "native_polish_prompt",
+    "engagement_prompt",
 )
 
 REQUIRED_PLACEHOLDERS: dict[str, tuple[str, ...]] = {
-    "phase1_prompt": ("{{product_context}}",),
-    "phase3_prompt": ("{{rules_context}}",),
-    "phase4_prompt": ("{{mined_context}}",),
+    "brief_prompt": ("{{pre_materials}}",),
+    "dossier_prompt": ("{{subreddit_name}}", "{{subreddit_meta}}", "{{subreddit_rules}}", "{{corpus_excerpt}}"),
+    "post_draft_prompt": ("{{subreddit_name}}", "{{product_brief}}", "{{subreddit_dossier}}"),
+    "mod_review_prompt": ("{{subreddit_name}}", "{{subreddit_rules}}", "{{subreddit_dossier}}", "{{post_draft}}"),
+    "revise_prompt": ("{{subreddit_name}}", "{{mod_review}}", "{{post_draft}}"),
+    "native_polish_prompt": ("{{subreddit_name}}", "{{subreddit_dossier}}", "{{post_revision}}"),
+    "engagement_prompt": ("{{subreddit_name}}", "{{subreddit_dossier}}", "{{post_final}}"),
 }
 
 

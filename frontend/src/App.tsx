@@ -9,8 +9,10 @@ import type {
   PromptsResponse,
   RunCreateResponse,
   RunStatusResponse,
+  RunOptions,
 } from './api/types'
 import TextAreaField from './components/TextAreaField'
+import InputField from './components/InputField'
 import StatusPill from './components/StatusPill'
 import MarkdownPreview from './components/MarkdownPreview'
 import MarkdownBlock from './components/MarkdownBlock'
@@ -24,13 +26,34 @@ import {
 import { useLocalStorageState } from './hooks/useLocalStorageState'
 
 type BackendStatus = 'online' | 'offline' | 'unknown'
-type OutputKind = 'part1' | 'part2' | 'final'
+type OutputKind =
+  | 'post_final'
+  | 'engagement_kit'
+  | 'subreddit_dossier'
+  | 'mod_review'
+  | 'product_brief'
+  | 'post_v1'
+  | 'post_v2'
 
 const OUTPUT_META: Record<OutputKind, { label: string; desc: string }> = {
-  part1: { label: 'Part 1：定位', desc: 'Market Positioning & Audience Analysis' },
-  part2: { label: 'Part 2：策略', desc: 'Community Strategy（Top 5 社区）' },
-  final: { label: 'Final：内容方案', desc: 'KPI + 内容草稿 + 种子评论' },
+  post_final: { label: '最终 Post', desc: '可直接发帖的最终文案' },
+  engagement_kit: { label: '互动文案包', desc: 'OP 首评/回复模板（OP-only）' },
+  subreddit_dossier: { label: 'Sub Dossier', desc: '风格/禁忌/标题模板/评论氛围' },
+  mod_review: { label: 'Mod 审核', desc: 'Pass/Fail + 修改建议' },
+  product_brief: { label: '产品 Brief', desc: '从前置资料抽取的结构化摘要' },
+  post_v1: { label: 'Post v1', desc: '初稿' },
+  post_v2: { label: 'Post v2', desc: '合规修订稿' },
 }
+
+const OUTPUT_ORDER: OutputKind[] = [
+  'post_final',
+  'engagement_kit',
+  'subreddit_dossier',
+  'mod_review',
+  'product_brief',
+  'post_v1',
+  'post_v2',
+]
 
 function toCnStatus(status: RunStatusResponse['status']) {
   switch (status) {
@@ -51,10 +74,14 @@ function toCnStatus(status: RunStatusResponse['status']) {
 
 function humanPhase(phase: string | null | undefined) {
   if (!phase) return ''
-  if (phase === 'workflow1.py') return '阶段 1（产品理解）'
-  if (phase === 'workflow2.py') return '阶段 2（定位与候选）'
-  if (phase === 'workflow3.py') return '阶段 3（审计与筛选）'
-  if (phase === 'workflow4.py') return '阶段 4（KPI 与草稿）'
+  if (phase === 'stage0_brief') return '阶段 0（Brief 抽取）'
+  if (phase === 'paid_workflow1_scrape.py') return '阶段 1（抓取语料）'
+  if (phase === 'paid_workflow2_dossier.py') return '阶段 2（Dossier）'
+  if (phase === 'paid_workflow3_post_v1.py') return '阶段 3（Post v1）'
+  if (phase === 'paid_workflow4_mod_review.py') return '阶段 4（Mod 审核）'
+  if (phase === 'paid_workflow5_post_v2.py') return '阶段 5（Post v2）'
+  if (phase === 'paid_workflow6_post_final.py') return '阶段 6（最终 Post）'
+  if (phase === 'paid_workflow7_engagement_kit.py') return '阶段 7（互动文案包）'
   return phase
 }
 
@@ -71,10 +98,19 @@ export default function App() {
   >('draftPromptOverrides', {})
   const [draftPrompts, setDraftPrompts] = useState<Record<string, string>>({})
 
-  const [productContext, setProductContext] = useLocalStorageState(
-    'draftProductContext',
+  const [targetSubreddit, setTargetSubreddit] = useLocalStorageState(
+    'draftTargetSubreddit',
     '',
   )
+  const [preMaterials, setPreMaterials] = useLocalStorageState('draftPreMaterials', '')
+  const [runOptions, setRunOptions] = useLocalStorageState<RunOptions>('draftRunOptions', {
+    top_time_filter: 'month',
+    top_posts_limit: 20,
+    hot_posts_limit: 8,
+    comments_per_post: 7,
+    replies_per_comment: 2,
+    comment_reply_depth: 2,
+  })
 
   const [runId, setRunId] = useLocalStorageState<string | null>('currentRunId', null)
   const [run, setRun] = useState<RunStatusResponse | null>(null)
@@ -83,7 +119,7 @@ export default function App() {
   const [isStopping, setIsStopping] = useState(false)
   const [stopError, setStopError] = useState<string | null>(null)
 
-  const [selectedOutput, setSelectedOutput] = useState<OutputKind>('final')
+  const [selectedOutput, setSelectedOutput] = useState<OutputKind>('post_final')
   const [outputMarkdown, setOutputMarkdown] = useState<Partial<Record<OutputKind, string>>>({})
   const [outputLoading, setOutputLoading] = useState<OutputKind | null>(null)
   const [outputError, setOutputError] = useState<string | null>(null)
@@ -106,17 +142,19 @@ export default function App() {
   const chatEnabled = !!runId && !!run && run.status !== 'pending' && run.status !== 'running'
 
   const promptErrors = useMemo(() => validatePrompts(draftPrompts), [draftPrompts])
-  const productError = productContext.trim() ? null : '不能为空'
+  const subredditError = targetSubreddit.trim() ? null : '不能为空'
+  const materialsError = preMaterials.trim() ? null : '不能为空'
 
   const canRun = useMemo(() => {
     if (isLocked) return false
     if (!defaultPrompts) return false
-    if (productError) return false
+    if (subredditError) return false
+    if (materialsError) return false
     for (const k of PROMPT_KEYS) {
       if (promptErrors[k]) return false
     }
     return true
-  }, [defaultPrompts, isLocked, productError, promptErrors])
+  }, [defaultPrompts, isLocked, materialsError, promptErrors, subredditError])
 
   const promptOverrides = useMemo(() => {
     if (!defaultPrompts) return {}
@@ -198,7 +236,7 @@ export default function App() {
   }, [runId])
 
   useEffect(() => {
-    setSelectedOutput('final')
+    setSelectedOutput('post_final')
     setOutputMarkdown({})
     setOutputLoading(null)
     setOutputError(null)
@@ -215,7 +253,16 @@ export default function App() {
   const availableOutputs = useMemo(() => {
     const downloads = run?.downloads ?? {}
     const keys = Object.keys(downloads) as OutputKind[]
-    return keys.filter((k) => k === 'part1' || k === 'part2' || k === 'final')
+    return keys.filter(
+      (k) =>
+        k === 'post_final' ||
+        k === 'engagement_kit' ||
+        k === 'subreddit_dossier' ||
+        k === 'mod_review' ||
+        k === 'product_brief' ||
+        k === 'post_v1' ||
+        k === 'post_v2',
+    )
   }, [run])
 
   async function loadChatHistory() {
@@ -288,8 +335,11 @@ export default function App() {
     setIsStarting(true)
 
     try {
+      const normalizedSub = targetSubreddit.trim().replace(/^r\//i, '')
       const payload = {
-        product_context_md: productContext,
+        target_subreddit: normalizedSub,
+        pre_materials: preMaterials,
+        options: runOptions,
         prompt_overrides: promptOverrides,
         wait: false,
       }
@@ -396,8 +446,8 @@ export default function App() {
       <header className="topbar">
         <div className="topbar__left">
           <div className="brand">
-            <div className="brand__title">Reddit 内容方案工作流</div>
-            <div className="brand__subtitle">前端工作台（中文界面）</div>
+            <div className="brand__title">Reddit 单 Sub 深度写作工作流</div>
+            <div className="brand__subtitle">付款后交付版 · 前端工作台</div>
           </div>
         </div>
 
@@ -444,30 +494,111 @@ export default function App() {
             <div className="card__header">
               <div>
                 <div className="card__title">输入</div>
-                <div className="card__desc">粘贴英文 Markdown（每次运行可不同）。</div>
+                <div className="card__desc">
+                  锁定一个 subreddit + 输入前置资料（原文不落盘，只抽取 brief）。
+                </div>
               </div>
               <div className="card__headerActions">
                 <button
                   className="btn btn--ghost"
                   type="button"
                   disabled={isLocked}
-                  onClick={() => setProductContext('')}
+                  onClick={() => {
+                    setTargetSubreddit('')
+                    setPreMaterials('')
+                    setRunOptions({
+                      top_time_filter: 'month',
+                      top_posts_limit: 20,
+                      hot_posts_limit: 8,
+                      comments_per_post: 7,
+                      replies_per_comment: 2,
+                      comment_reply_depth: 2,
+                    })
+                  }}
                 >
                   清空
                 </button>
               </div>
             </div>
 
+            <InputField
+              label="Target Subreddit（不带 r/）"
+              value={targetSubreddit}
+              onChange={setTargetSubreddit}
+              placeholder="CrewAI"
+              error={subredditError}
+              disabled={isLocked}
+            />
+
             <TextAreaField
-              label="Product Context（英文 Markdown）"
-              value={productContext}
-              onChange={setProductContext}
-              placeholder={'[Client Product Data]\nProduct Name: ...\n...'}
-              error={productError}
+              label="前置资料（粘贴文本）"
+              value={preMaterials}
+              onChange={setPreMaterials}
+              placeholder={
+                '例如：初步方案、产品详细资料、素材链接、硬性约束（must include / must avoid）…'
+              }
+              helper="后端只会保存抽取后的 product_brief.md；不会保存原始前置资料文本。"
+              error={materialsError}
               disabled={isLocked}
               rows={12}
               monospace
             />
+
+            <details className="details" open={false}>
+              <summary className="details__summary">高级采样参数（可选）</summary>
+              <div className="details__body">
+                <div className="detailsGrid">
+                  <InputField
+                    label="Top posts（time_filter=month）"
+                    value={String(runOptions.top_posts_limit ?? 20)}
+                    onChange={(v) =>
+                      setRunOptions((prev) => ({
+                        ...prev,
+                        top_posts_limit: Math.max(1, Number.parseInt(v || '0', 10) || 20),
+                      }))
+                    }
+                    disabled={isLocked}
+                    type="number"
+                  />
+                  <InputField
+                    label="Hot posts（额外采样）"
+                    value={String(runOptions.hot_posts_limit ?? 8)}
+                    onChange={(v) =>
+                      setRunOptions((prev) => ({
+                        ...prev,
+                        hot_posts_limit: Math.max(0, Number.parseInt(v || '0', 10) || 0),
+                      }))
+                    }
+                    disabled={isLocked}
+                    type="number"
+                  />
+                  <InputField
+                    label="Comments / post"
+                    value={String(runOptions.comments_per_post ?? 7)}
+                    onChange={(v) =>
+                      setRunOptions((prev) => ({
+                        ...prev,
+                        comments_per_post: Math.max(1, Number.parseInt(v || '0', 10) || 7),
+                      }))
+                    }
+                    disabled={isLocked}
+                    type="number"
+                  />
+                  <InputField
+                    label="Replies / comment"
+                    value={String(runOptions.replies_per_comment ?? 2)}
+                    onChange={(v) =>
+                      setRunOptions((prev) => ({
+                        ...prev,
+                        replies_per_comment: Math.max(0, Number.parseInt(v || '0', 10) || 2),
+                      }))
+                    }
+                    disabled={isLocked}
+                    type="number"
+                  />
+                </div>
+              </div>
+            </details>
           </div>
 
           <div className="card">
@@ -509,7 +640,7 @@ export default function App() {
                 const required = meta.requiredPlaceholders
 
                 return (
-                  <details className="accordion__item" key={meta.key} open={meta.key === 'phase1_prompt'}>
+                  <details className="accordion__item" key={meta.key} open={meta.key === 'brief_prompt'}>
                     <summary className="accordion__summary">
                       <div className="accordion__summaryLeft">
                         <span className="accordion__title">{meta.title}</span>
@@ -673,9 +804,9 @@ export default function App() {
             ) : availableOutputs.length === 0 ? (
               <div className="empty">已完成，但没有检测到可下载结果文件。</div>
             ) : (
-              <div className="results">
-                <div className="tabs">
-                  {(['part1', 'part2', 'final'] as OutputKind[]).map((k) => {
+                <div className="results">
+                  <div className="tabs">
+                  {OUTPUT_ORDER.map((k) => {
                     const enabled = availableOutputs.includes(k)
                     const active = selectedOutput === k
                     return (

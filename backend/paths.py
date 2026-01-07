@@ -9,9 +9,12 @@ PROMPTS_DIR = REPO_ROOT / "prompts"
 DEFAULT_PROMPTS_PATH = PROMPTS_DIR / "default_prompts.json"
 
 WORKFLOW_SCRIPTS = [
-    REPO_ROOT / "workflow1.py",
-    REPO_ROOT / "workflow2.py",
-    REPO_ROOT / "workflow3.py",
-    REPO_ROOT / "workflow4.py",
+    REPO_ROOT / "paid_workflow1_scrape.py",
+    REPO_ROOT / "paid_workflow2_dossier.py",
+    REPO_ROOT / "paid_workflow3_post_v1.py",
+    REPO_ROOT / "paid_workflow4_mod_review.py",
+    REPO_ROOT / "paid_workflow5_post_v2.py",
+    REPO_ROOT / "paid_workflow6_post_final.py",
+    REPO_ROOT / "paid_workflow7_engagement_kit.py",
 ]
 

@@ -8,8 +8,21 @@ export type PromptsResponse = {
 
 export type RunStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'
 
+export type TopTimeFilter = 'day' | 'week' | 'month' | 'year' | 'all'
+
+export type RunOptions = {
+  top_time_filter?: TopTimeFilter
+  top_posts_limit?: number
+  hot_posts_limit?: number
+  comments_per_post?: number
+  replies_per_comment?: number
+  comment_reply_depth?: 1 | 2
+}
+
 export type RunCreateRequest = {
-  product_context_md: string
+  target_subreddit: string
+  pre_materials: string
+  options?: RunOptions
   prompt_overrides?: Record<string, string>
   run_id?: string | null
   wait?: boolean
