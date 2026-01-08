@@ -22,7 +22,7 @@ REQUIRED_PLACEHOLDERS: dict[str, tuple[str, ...]] = {
     "mod_review_prompt": ("{{subreddit_name}}", "{{subreddit_rules}}", "{{subreddit_dossier}}", "{{corpus_excerpt}}", "{{post_draft}}"),
     "revise_prompt": ("{{subreddit_name}}", "{{mod_review}}", "{{post_draft}}"),
     "native_polish_prompt": ("{{subreddit_name}}", "{{subreddit_dossier}}", "{{post_revision}}"),
-    "engagement_prompt": ("{{subreddit_name}}", "{{subreddit_dossier}}", "{{post_final}}"),
+    "engagement_prompt": ("{{subreddit_name}}", "{{subreddit_dossier}}", "{{corpus_excerpt}}", "{{post_final}}"),
 }
 
 

@@ -40,10 +40,11 @@ def normalize_subreddit(raw: str) -> str:
     return f"r/{name.strip()}"
 
 
-def render_prompt(template: str, *, subreddit_name: str, subreddit_dossier: str, post_final: str) -> str:
+def render_prompt(template: str, *, subreddit_name: str, subreddit_dossier: str, corpus_excerpt: str, post_final: str) -> str:
     return (
         template.replace("{{subreddit_name}}", subreddit_name)
         .replace("{{subreddit_dossier}}", subreddit_dossier)
+        .replace("{{corpus_excerpt}}", corpus_excerpt)
         .replace("{{post_final}}", post_final)
     )
 
@@ -59,12 +60,14 @@ def main() -> int:
     subreddit_name = normalize_subreddit(str(config.get("target_subreddit") or ""))
 
     dossier_path = run_dir / "subreddit_dossier.md"
+    excerpt_path = run_dir / "corpus_excerpt.md"
     post_path = run_dir / "post_final.md"
-    if not dossier_path.is_file() or not post_path.is_file():
-        print("Error: missing subreddit_dossier.md or post_final.md")
+    if not dossier_path.is_file() or not excerpt_path.is_file() or not post_path.is_file():
+        print("Error: missing subreddit_dossier.md, corpus_excerpt.md, or post_final.md")
         return 1
 
     subreddit_dossier = read_text(dossier_path)
+    corpus_excerpt = read_text(excerpt_path)
     post_final = read_text(post_path)
 
     prompts = load_prompts()
@@ -77,6 +80,7 @@ def main() -> int:
         template,
         subreddit_name=subreddit_name,
         subreddit_dossier=subreddit_dossier,
+        corpus_excerpt=corpus_excerpt,
         post_final=post_final,
     )
 
@@ -106,4 +110,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
