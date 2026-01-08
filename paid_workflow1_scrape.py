@@ -196,17 +196,17 @@ def build_corpus_excerpt(posts: list[dict[str, Any]], *, max_posts: int = 10) ->
         if body:
             lines.append("")
             lines.append("Body (snippet):")
-            lines.append(truncate(body, 450))
+            lines.append(truncate(body, 850))
         lines.append("")
         lines.append("Top comments (snippets):")
         comments = post.get("comments") or []
         for c_idx, c in enumerate(comments[:3], start=1):
             author = c.get("author") or "[deleted]"
-            lines.append(f"- C{c_idx} {author} (score {c.get('score')}): {truncate(c.get('body') or '', 220)}")
+            lines.append(f"- C{c_idx} {author} (score {c.get('score')}): {truncate(c.get('body') or '', 320)}")
             replies = c.get("replies") or []
             for r_idx, r in enumerate(replies[:1], start=1):
                 r_author = r.get("author") or "[deleted]"
-                lines.append(f"  - R{r_idx} {r_author}: {truncate(r.get('body') or '', 180)}")
+                lines.append(f"  - R{r_idx} {r_author}: {truncate(r.get('body') or '', 280)}")
         lines.append("")
         lines.append("---")
         lines.append("")
