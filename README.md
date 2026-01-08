@@ -53,7 +53,7 @@ Example request body:
 ## Notes
 
 - The backend has no user system and no database (state is stored in `runs/<run_id>/run_state.json`).
-- Upfront `pre_materials` are **not persisted**; only the extracted `product_brief.md` is stored in the run folder.
+- Upfront `pre_materials` are persisted to `pre_materials.md` in the run folder; only the extracted `product_brief.md` is used as authoritative chat context for the run.
 - Chat history is appended per run in `runs/<run_id>/chat_history.jsonl` and is used for `/api/runs/{run_id}/chat` follow-ups.
 - To avoid in-memory state issues, run Uvicorn with a single worker (default).
 

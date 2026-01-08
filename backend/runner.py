@@ -286,6 +286,7 @@ class RunManager:
         prompts: dict[str, str],
     ) -> None:
         config_path = record.run_dir / "run_config.json"
+        pre_materials_path = record.run_dir / "pre_materials.md"
         brief_md_path = record.run_dir / "product_brief.md"
         brief_json_path = record.run_dir / "product_brief.json"
         prompts_path = record.run_dir / "prompts.json"
@@ -324,15 +325,22 @@ class RunManager:
 
             with log_path.open("a", encoding="utf-8") as log_file:
                 # ------------------------------------------------------------
-                # Stage 0: Extract product brief (raw pre-materials are NOT persisted)
+                # Stage 0: Persist pre-materials + extract product brief
                 # ------------------------------------------------------------
                 if control and control.cancel_event.is_set():
                     raise RunCancelledError()
 
                 record.current_phase = "stage0_brief"
                 record.persist()
-                log_file.write("[stage0_brief] Extracting product brief (raw pre-materials are not persisted)\n")
+                log_file.write("[stage0_brief] Saving pre-materials and extracting product brief\n")
                 log_file.flush()
+
+                # Persist the raw pre-materials for later reuse/review.
+                # Note: we still keep the extracted Product Brief as the ONLY chat context for this run.
+                raw_pre_materials = pre_materials
+                if not raw_pre_materials.endswith("\n"):
+                    raw_pre_materials += "\n"
+                pre_materials_path.write_text(raw_pre_materials, encoding="utf-8")
 
                 brief_text = generate_product_brief(prompts["brief_prompt"], pre_materials=pre_materials)
                 brief_json = extract_json_object(brief_text)
@@ -350,7 +358,7 @@ class RunManager:
                     history_path,
                     role="user",
                     text=(
-                        "Context note: upfront pre-materials were provided out-of-band and are not stored. "
+                        "Context note: upfront pre-materials were provided out-of-band and are not included in chat context. "
                         "Use ONLY the following extracted Product Brief as authoritative context for this run.\n\n"
                         f"Target Subreddit: r/{target_subreddit.strip()}\n\n"
                         f"{brief_md}"
