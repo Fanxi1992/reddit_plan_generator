@@ -19,7 +19,7 @@ REQUIRED_PLACEHOLDERS: dict[str, tuple[str, ...]] = {
     "brief_prompt": ("{{pre_materials}}",),
     "dossier_prompt": ("{{subreddit_name}}", "{{subreddit_meta}}", "{{subreddit_rules}}", "{{corpus_excerpt}}"),
     "post_draft_prompt": ("{{subreddit_name}}", "{{product_brief}}", "{{subreddit_dossier}}", "{{corpus_excerpt}}"),
-    "mod_review_prompt": ("{{subreddit_name}}", "{{subreddit_rules}}", "{{subreddit_dossier}}", "{{post_draft}}"),
+    "mod_review_prompt": ("{{subreddit_name}}", "{{subreddit_rules}}", "{{subreddit_dossier}}", "{{corpus_excerpt}}", "{{post_draft}}"),
     "revise_prompt": ("{{subreddit_name}}", "{{mod_review}}", "{{post_draft}}"),
     "native_polish_prompt": ("{{subreddit_name}}", "{{subreddit_dossier}}", "{{post_revision}}"),
     "engagement_prompt": ("{{subreddit_name}}", "{{subreddit_dossier}}", "{{post_final}}"),

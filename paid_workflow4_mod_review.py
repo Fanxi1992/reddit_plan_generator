@@ -40,11 +40,14 @@ def normalize_subreddit(raw: str) -> str:
     return f"r/{name.strip()}"
 
 
-def render_prompt(template: str, *, subreddit_name: str, subreddit_rules: str, subreddit_dossier: str, post_draft: str) -> str:
+def render_prompt(
+    template: str, *, subreddit_name: str, subreddit_rules: str, subreddit_dossier: str, corpus_excerpt: str, post_draft: str
+) -> str:
     return (
         template.replace("{{subreddit_name}}", subreddit_name)
         .replace("{{subreddit_rules}}", subreddit_rules)
         .replace("{{subreddit_dossier}}", subreddit_dossier)
+        .replace("{{corpus_excerpt}}", corpus_excerpt)
         .replace("{{post_draft}}", post_draft)
     )
 
@@ -61,13 +64,15 @@ def main() -> int:
 
     rules_path = run_dir / "subreddit_rules.md"
     dossier_path = run_dir / "subreddit_dossier.md"
+    excerpt_path = run_dir / "corpus_excerpt.md"
     post_path = run_dir / "post_v1.md"
-    if not rules_path.is_file() or not dossier_path.is_file() or not post_path.is_file():
-        print("Error: missing rules/dossier/post_v1 artifacts")
+    if not rules_path.is_file() or not dossier_path.is_file() or not excerpt_path.is_file() or not post_path.is_file():
+        print("Error: missing rules/dossier/corpus_excerpt/post_v1 artifacts")
         return 1
 
     subreddit_rules = read_text(rules_path)
     subreddit_dossier = read_text(dossier_path)
+    corpus_excerpt = read_text(excerpt_path)
     post_draft = read_text(post_path)
 
     prompts = load_prompts()
@@ -81,6 +86,7 @@ def main() -> int:
         subreddit_name=subreddit_name,
         subreddit_rules=subreddit_rules,
         subreddit_dossier=subreddit_dossier,
+        corpus_excerpt=corpus_excerpt,
         post_draft=post_draft,
     )
 
@@ -110,4 +116,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
