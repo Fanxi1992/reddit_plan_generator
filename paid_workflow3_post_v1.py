@@ -40,11 +40,14 @@ def normalize_subreddit(raw: str) -> str:
     return f"r/{name.strip()}"
 
 
-def render_prompt(template: str, *, subreddit_name: str, product_brief: str, subreddit_dossier: str) -> str:
+def render_prompt(
+    template: str, *, subreddit_name: str, product_brief: str, subreddit_dossier: str, corpus_excerpt: str
+) -> str:
     return (
         template.replace("{{subreddit_name}}", subreddit_name)
         .replace("{{product_brief}}", product_brief)
         .replace("{{subreddit_dossier}}", subreddit_dossier)
+        .replace("{{corpus_excerpt}}", corpus_excerpt)
     )
 
 
@@ -60,12 +63,14 @@ def main() -> int:
 
     brief_path = run_dir / "product_brief.md"
     dossier_path = run_dir / "subreddit_dossier.md"
-    if not brief_path.is_file() or not dossier_path.is_file():
-        print("Error: missing product_brief.md or subreddit_dossier.md")
+    excerpt_path = run_dir / "corpus_excerpt.md"
+    if not brief_path.is_file() or not dossier_path.is_file() or not excerpt_path.is_file():
+        print("Error: missing product_brief.md, subreddit_dossier.md, or corpus_excerpt.md")
         return 1
 
     product_brief = read_text(brief_path)
     subreddit_dossier = read_text(dossier_path)
+    corpus_excerpt = read_text(excerpt_path)
 
     prompts = load_prompts()
     template = (prompts.get("post_draft_prompt") or "").strip()
@@ -78,6 +83,7 @@ def main() -> int:
         subreddit_name=subreddit_name,
         product_brief=product_brief,
         subreddit_dossier=subreddit_dossier,
+        corpus_excerpt=corpus_excerpt,
     )
 
     history_path = get_history_path(run_dir)
@@ -106,4 +112,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
