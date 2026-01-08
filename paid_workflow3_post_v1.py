@@ -61,22 +61,34 @@ def main() -> int:
     config = read_json(config_path)
     subreddit_name = normalize_subreddit(str(config.get("target_subreddit") or ""))
 
-    brief_path = run_dir / "product_brief.md"
-    dossier_path = run_dir / "subreddit_dossier.md"
-    excerpt_path = run_dir / "corpus_excerpt.md"
-    if not brief_path.is_file() or not dossier_path.is_file() or not excerpt_path.is_file():
-        print("Error: missing product_brief.md, subreddit_dossier.md, or corpus_excerpt.md")
-        return 1
-
-    product_brief = read_text(brief_path)
-    subreddit_dossier = read_text(dossier_path)
-    corpus_excerpt = read_text(excerpt_path)
-
     prompts = load_prompts()
     template = (prompts.get("post_draft_prompt") or "").strip()
     if not template:
         print("Error: post_draft_prompt is empty.")
         return 1
+
+    brief_path = run_dir / "product_brief.md"
+    dossier_path = run_dir / "subreddit_dossier.md"
+    excerpt_path = run_dir / "corpus_excerpt.md"
+
+    needs_product_brief = "{{product_brief}}" in template
+    needs_subreddit_dossier = "{{subreddit_dossier}}" in template
+    needs_corpus_excerpt = "{{corpus_excerpt}}" in template
+
+    missing: list[str] = []
+    if needs_product_brief and not brief_path.is_file():
+        missing.append(brief_path.name)
+    if needs_subreddit_dossier and not dossier_path.is_file():
+        missing.append(dossier_path.name)
+    if needs_corpus_excerpt and not excerpt_path.is_file():
+        missing.append(excerpt_path.name)
+    if missing:
+        print(f"Error: missing required artifacts for post_draft_prompt: {', '.join(missing)}")
+        return 1
+
+    product_brief = read_text(brief_path) if needs_product_brief else ""
+    subreddit_dossier = read_text(dossier_path) if needs_subreddit_dossier else ""
+    corpus_excerpt = read_text(excerpt_path) if needs_corpus_excerpt else ""
 
     prompt = render_prompt(
         template,
