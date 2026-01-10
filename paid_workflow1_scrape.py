@@ -64,6 +64,31 @@ def truncate(text: str, limit: int) -> str:
     return cleaned[:limit] + "…"
 
 
+def normalize_text(text: Any) -> str:
+    if not isinstance(text, str):
+        return ""
+    return text.replace("\r\n", "\n")
+
+
+def _fenced_block(text: str, *, lang: str = "text") -> list[str]:
+    """
+    Return a Markdown fenced code block for arbitrary text without truncation.
+    Uses a fence length that is guaranteed not to conflict with backticks inside the text.
+    """
+    max_ticks = 0
+    current = 0
+    for ch in text:
+        if ch == "`":
+            current += 1
+            max_ticks = max(max_ticks, current)
+        else:
+            current = 0
+
+    fence = "`" * max(3, max_ticks + 1)
+    header = f"{fence}{lang}".rstrip()
+    return [header, text, fence]
+
+
 def get_reddit() -> praw.Reddit:
     if not os.getenv("REDDIT_CLIENT_ID"):
         raise RuntimeError("Missing Reddit credentials in environment (.env): REDDIT_CLIENT_ID is required.")
@@ -156,7 +181,7 @@ def fetch_comment_tree(
             "id": safe_attr(comment, "id"),
             "author": author_name,
             "score": safe_attr(comment, "score"),
-            "body": truncate(safe_attr(comment, "body") or "", 900),
+            "body": normalize_text(safe_attr(comment, "body") or ""),
             "created_utc": safe_attr(comment, "created_utc"),
             "replies": [],
         }
@@ -172,7 +197,7 @@ def fetch_comment_tree(
                         "id": safe_attr(reply, "id"),
                         "author": r_author_name,
                         "score": safe_attr(reply, "score"),
-                        "body": truncate(safe_attr(reply, "body") or "", 600),
+                        "body": normalize_text(safe_attr(reply, "body") or ""),
                         "created_utc": safe_attr(reply, "created_utc"),
                     }
                 )
@@ -181,35 +206,67 @@ def fetch_comment_tree(
     return [comment_to_record(c) for c in top_level]
 
 
-def build_corpus_excerpt(posts: list[dict[str, Any]], *, max_posts: int = 10) -> str:
-    lines: list[str] = ["# Corpus Excerpt (Top Posts + Comment Snippets)", ""]
-    chosen = posts[:max_posts]
-    for idx, post in enumerate(chosen, start=1):
-        lines.append(f"## Post {idx}: {post.get('title','').strip()}")
+def build_corpus_excerpt(posts: list[dict[str, Any]]) -> str:
+    """
+    Build the full reference corpus injected into prompts.
+
+    This is intentionally NOT token-optimized:
+    - Includes all sampled posts (top + hot) collected in this run.
+    - Includes full post bodies and sampled comment trees (per run options).
+    - Does not truncate text.
+    """
+    lines: list[str] = ["# Corpus Excerpt (Reference Material: Posts + Comment Trees)", ""]
+    for idx, post in enumerate(posts, start=1):
+        title = str(post.get("title") or "").strip()
+        lines.append(f"## Post {idx}: {title}")
+        lines.append(f"- id: {post.get('id')}")
         lines.append(f"- type: {post.get('post_type')}")
-        flair = (post.get("flair") or "").strip()
+
+        flair = str(post.get("flair") or "").strip()
         if flair:
             lines.append(f"- flair: {flair}")
+
         lines.append(f"- score: {post.get('score')} | comments: {post.get('num_comments')}")
         lines.append(f"- permalink: {post.get('permalink')}")
-        body = (post.get("selftext") or "").strip()
+
+        url = normalize_text(post.get("url") or "")
+        if url:
+            lines.append(f"- url: {url}")
+
+        body = normalize_text(post.get("selftext") or "")
         if body:
             lines.append("")
-            lines.append("Body (snippet):")
-            lines.append(truncate(body, 850))
+            lines.append("Body:")
+            lines.extend(_fenced_block(body))
+
         lines.append("")
-        lines.append("Top comments (snippets):")
+        lines.append("Comments:")
         comments = post.get("comments") or []
-        for c_idx, c in enumerate(comments[:3], start=1):
-            author = c.get("author") or "[deleted]"
-            lines.append(f"- C{c_idx} {author} (score {c.get('score')}): {truncate(c.get('body') or '', 320)}")
-            replies = c.get("replies") or []
-            for r_idx, r in enumerate(replies[:1], start=1):
-                r_author = r.get("author") or "[deleted]"
-                lines.append(f"  - R{r_idx} {r_author}: {truncate(r.get('body') or '', 280)}")
+        if not comments:
+            lines.append("_No sampled comments available._")
+        else:
+            for c_idx, c in enumerate(comments, start=1):
+                author = c.get("author") or "[deleted]"
+                lines.append(f"### Comment {c_idx} ({author})")
+                lines.append(f"- id: {c.get('id')} | score: {c.get('score')} | created_utc: {c.get('created_utc')}")
+                lines.extend(_fenced_block(normalize_text(c.get("body") or "")))
+
+                replies = c.get("replies") or []
+                if replies:
+                    lines.append("")
+                    lines.append("Replies:")
+                    for r_idx, r in enumerate(replies, start=1):
+                        r_author = r.get("author") or "[deleted]"
+                        lines.append(f"- Reply {r_idx} ({r_author})")
+                        lines.append(
+                            f"  - id: {r.get('id')} | score: {r.get('score')} | created_utc: {r.get('created_utc')}"
+                        )
+                        lines.extend(_fenced_block(normalize_text(r.get("body") or "")))
+
         lines.append("")
         lines.append("---")
         lines.append("")
+
     return "\n".join(lines).strip() + "\n"
 
 
@@ -308,7 +365,7 @@ def main() -> int:
         post_record: dict[str, Any] = {
             "id": safe_attr(submission, "id"),
             "title": safe_attr(submission, "title") or "",
-            "selftext": truncate(safe_attr(submission, "selftext") or "", 2200),
+            "selftext": normalize_text(safe_attr(submission, "selftext") or ""),
             "url": safe_attr(submission, "url"),
             "permalink": f"https://www.reddit.com{safe_attr(submission, 'permalink')}",
             "created_utc": safe_attr(submission, "created_utc"),
@@ -329,7 +386,7 @@ def main() -> int:
     write_json(run_dir / "subreddit_rules.json", rules)
     (run_dir / "subreddit_rules.md").write_text(rules_md, encoding="utf-8")
     write_json(run_dir / "corpus.json", posts_out)
-    (run_dir / "corpus_excerpt.md").write_text(build_corpus_excerpt(posts_out, max_posts=10), encoding="utf-8")
+    (run_dir / "corpus_excerpt.md").write_text(build_corpus_excerpt(posts_out), encoding="utf-8")
 
     # Append a compact progress note to chat history (avoid storing full corpus in chat history).
     history_path = get_history_path(run_dir)
@@ -352,4 +409,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
