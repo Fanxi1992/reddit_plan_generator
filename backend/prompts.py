@@ -21,10 +21,23 @@ REQUIRED_PLACEHOLDERS: dict[str, tuple[str, ...]] = {
     # post_draft_prompt placeholders are OPTIONAL to support "client-provided draft" workflows
     # where we don't want to spend tokens injecting large context blocks.
     "post_draft_prompt": (),
-    "mod_review_prompt": ("{{subreddit_name}}", "{{subreddit_rules}}", "{{subreddit_dossier}}", "{{corpus_excerpt}}", "{{post_draft}}"),
-    "revise_prompt": ("{{subreddit_name}}", "{{mod_review}}", "{{post_draft}}"),
-    "native_polish_prompt": ("{{subreddit_name}}", "{{subreddit_dossier}}", "{{post_revision}}"),
-    "engagement_prompt": ("{{subreddit_name}}", "{{subreddit_dossier}}", "{{corpus_excerpt}}", "{{post_final}}"),
+    "mod_review_prompt": (
+        "{{subreddit_name}}",
+        "{{current_date}}",
+        "{{subreddit_rules}}",
+        "{{subreddit_dossier}}",
+        "{{corpus_excerpt}}",
+        "{{post_draft}}",
+    ),
+    "revise_prompt": ("{{subreddit_name}}", "{{current_date}}", "{{mod_review}}", "{{post_draft}}"),
+    "native_polish_prompt": ("{{subreddit_name}}", "{{current_date}}", "{{subreddit_dossier}}", "{{post_revision}}"),
+    "engagement_prompt": (
+        "{{subreddit_name}}",
+        "{{current_date}}",
+        "{{subreddit_dossier}}",
+        "{{corpus_excerpt}}",
+        "{{post_final}}",
+    ),
 }
 
 

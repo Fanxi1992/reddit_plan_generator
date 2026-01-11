@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import json
 import os
 from pathlib import Path
@@ -41,10 +42,17 @@ def normalize_subreddit(raw: str) -> str:
 
 
 def render_prompt(
-    template: str, *, subreddit_name: str, product_brief: str, subreddit_dossier: str, corpus_excerpt: str
+    template: str,
+    *,
+    subreddit_name: str,
+    current_date: str,
+    product_brief: str,
+    subreddit_dossier: str,
+    corpus_excerpt: str,
 ) -> str:
     return (
         template.replace("{{subreddit_name}}", subreddit_name)
+        .replace("{{current_date}}", current_date)
         .replace("{{product_brief}}", product_brief)
         .replace("{{subreddit_dossier}}", subreddit_dossier)
         .replace("{{corpus_excerpt}}", corpus_excerpt)
@@ -60,6 +68,7 @@ def main() -> int:
 
     config = read_json(config_path)
     subreddit_name = normalize_subreddit(str(config.get("target_subreddit") or ""))
+    current_date = (str(config.get("current_date") or "")).strip() or datetime.date.today().isoformat()
 
     prompts = load_prompts()
     template = (prompts.get("post_draft_prompt") or "").strip()
@@ -93,6 +102,7 @@ def main() -> int:
     prompt = render_prompt(
         template,
         subreddit_name=subreddit_name,
+        current_date=current_date,
         product_brief=product_brief,
         subreddit_dossier=subreddit_dossier,
         corpus_excerpt=corpus_excerpt,

@@ -285,6 +285,10 @@ class RunManager:
         options: dict,
         prompts: dict[str, str],
     ) -> None:
+        now_local = datetime.datetime.now().astimezone()
+        current_date = now_local.date().isoformat()
+        current_datetime = now_local.isoformat(timespec="seconds")
+
         config_path = record.run_dir / "run_config.json"
         pre_materials_path = record.run_dir / "pre_materials.md"
         brief_md_path = record.run_dir / "product_brief.md"
@@ -308,6 +312,8 @@ class RunManager:
                     {
                         "target_subreddit": target_subreddit,
                         "options": options,
+                        "current_date": current_date,
+                        "current_datetime": current_datetime,
                     }
                 )
                 + "\n",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import json
 import os
 from pathlib import Path
@@ -40,9 +41,12 @@ def normalize_subreddit(raw: str) -> str:
     return f"r/{name.strip()}"
 
 
-def render_prompt(template: str, *, subreddit_name: str, subreddit_dossier: str, post_revision: str) -> str:
+def render_prompt(
+    template: str, *, subreddit_name: str, current_date: str, subreddit_dossier: str, post_revision: str
+) -> str:
     return (
         template.replace("{{subreddit_name}}", subreddit_name)
+        .replace("{{current_date}}", current_date)
         .replace("{{subreddit_dossier}}", subreddit_dossier)
         .replace("{{post_revision}}", post_revision)
     )
@@ -57,6 +61,7 @@ def main() -> int:
 
     config = read_json(config_path)
     subreddit_name = normalize_subreddit(str(config.get("target_subreddit") or ""))
+    current_date = (str(config.get("current_date") or "")).strip() or datetime.date.today().isoformat()
 
     dossier_path = run_dir / "subreddit_dossier.md"
     post_path = run_dir / "post_v2.md"
@@ -76,6 +81,7 @@ def main() -> int:
     prompt = render_prompt(
         template,
         subreddit_name=subreddit_name,
+        current_date=current_date,
         subreddit_dossier=subreddit_dossier,
         post_revision=post_revision,
     )
@@ -106,4 +112,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
