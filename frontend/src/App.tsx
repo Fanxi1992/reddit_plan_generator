@@ -55,6 +55,8 @@ const OUTPUT_ORDER: OutputKind[] = [
   'post_v2',
 ]
 
+const RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/
+
 function toCnStatus(status: RunStatusResponse['status']) {
   switch (status) {
     case 'pending':
@@ -119,6 +121,14 @@ export default function App() {
   const [isStopping, setIsStopping] = useState(false)
   const [stopError, setStopError] = useState<string | null>(null)
 
+  const [recentRunIds, setRecentRunIds] = useLocalStorageState<string[]>(
+    'recentRunIds',
+    [],
+  )
+  const [resumeRunId, setResumeRunId] = useState('')
+  const [resumeLoading, setResumeLoading] = useState(false)
+  const [resumeError, setResumeError] = useState<string | null>(null)
+
   const [selectedOutput, setSelectedOutput] = useState<OutputKind>('post_final')
   const [outputMarkdown, setOutputMarkdown] = useState<Partial<Record<OutputKind, string>>>({})
   const [outputLoading, setOutputLoading] = useState<OutputKind | null>(null)
@@ -160,6 +170,16 @@ export default function App() {
     if (!defaultPrompts) return {}
     return diffPrompts(defaultPrompts, draftPrompts)
   }, [defaultPrompts, draftPrompts])
+
+  useEffect(() => {
+    if (!runId) return
+    if (!RUN_ID_RE.test(runId)) return
+    setRecentRunIds((prev) => {
+      if (prev[0] === runId) return prev
+      const next = [runId, ...prev.filter((id) => id !== runId)]
+      return next.slice(0, 12)
+    })
+  }, [runId, setRecentRunIds])
 
   useEffect(() => {
     let cancelled = false
@@ -327,6 +347,55 @@ export default function App() {
     }
   }, [availableOutputs, outputLoading, outputMarkdown, run?.status, runId, selectedOutput])
 
+  function rememberRunId(id: string) {
+    const normalized = id.trim()
+    if (!normalized || !RUN_ID_RE.test(normalized)) return
+    setRecentRunIds((prev) => {
+      if (prev[0] === normalized) return prev
+      const next = [normalized, ...prev.filter((x) => x !== normalized)]
+      return next.slice(0, 12)
+    })
+  }
+
+  async function openRunById(rawId: string) {
+    if (isLocked) return
+
+    const id = rawId.trim()
+    if (!id) return
+
+    if (!RUN_ID_RE.test(id)) {
+      setResumeError(
+        'run_id 格式不正确（仅允许字母/数字/下划线/短横线，最长 64 位）',
+      )
+      return
+    }
+
+    if (id === runId) {
+      setResumeError(null)
+      setResumeRunId('')
+      return
+    }
+
+    setResumeError(null)
+    setResumeLoading(true)
+    try {
+      const data = await fetchJson<RunStatusResponse>(`/api/runs/${id}`, {
+        timeoutMs: 20000,
+      })
+      rememberRunId(id)
+      setStartError(null)
+      setStopError(null)
+      setRunId(id)
+      setRun(data)
+      setResumeRunId('')
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : '无法加载该 run_id，请检查后端/网络'
+      setResumeError(msg)
+    } finally {
+      setResumeLoading(false)
+    }
+  }
+
   async function startRun() {
     if (!defaultPrompts) return
     setStartError(null)
@@ -348,6 +417,7 @@ export default function App() {
         body: JSON.stringify(payload),
         timeoutMs: 30000,
       })
+      rememberRunId(res.run_id)
       setRunId(res.run_id)
     } catch (e) {
       if (e instanceof ApiError) {
@@ -741,6 +811,49 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            <InputField
+              label="接续旧任务（run_id）"
+              value={resumeRunId}
+              onChange={(v) => {
+                setResumeRunId(v)
+                if (resumeError) setResumeError(null)
+              }}
+              placeholder="20260110_114637"
+              helper="切换到该 run_id，并自动加载该任务的历史输出/聊天记录。"
+              error={resumeError}
+              disabled={isLocked || resumeLoading}
+              rightActions={
+                <button
+                  className="btn btn--ghost"
+                  type="button"
+                  disabled={isLocked || resumeLoading || !resumeRunId.trim()}
+                  onClick={() => openRunById(resumeRunId)}
+                >
+                  {resumeLoading ? '加载中…' : '接续'}
+                </button>
+              }
+            />
+
+            {recentRunIds.length ? (
+              <div className="recentRuns">
+                <div className="recentRuns__label">最近 run_id：</div>
+                <div className="recentRuns__list">
+                  {recentRunIds.slice(0, 8).map((id) => (
+                    <button
+                      key={id}
+                      className="btn btn--ghost btn--sm recentRuns__btn"
+                      type="button"
+                      disabled={isLocked || resumeLoading || id === runId}
+                      onClick={() => openRunById(id)}
+                      title={id}
+                    >
+                      {id}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             {startError ? (
               <div className="alert alert--bad">
