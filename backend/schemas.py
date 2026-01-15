@@ -58,7 +58,7 @@ class RunCreateRequest(BaseModel):
     pre_materials: str = Field(
         ...,
         min_length=1,
-        description="Upfront materials (notes/docs). Raw text will NOT be persisted; only the extracted brief is stored.",
+        description="Upfront materials (notes/docs). Raw text is persisted to pre_materials.md; only the extracted product_brief.md is used as authoritative chat context.",
     )
     options: RunOptions = Field(
         default_factory=RunOptions,
@@ -70,7 +70,7 @@ class RunCreateRequest(BaseModel):
     )
     run_id: str | None = Field(
         default=None,
-        description="Optional run id (default: timestamp).",
+        description="Optional run id (default: timestamp_subreddit).",
     )
     wait: bool = Field(
         default=False,

@@ -120,6 +120,25 @@ class RunManager:
         self._runs: dict[str, RunRecord] = {}
         self._controls: dict[str, RunControl] = {}
 
+    @staticmethod
+    def _normalize_subreddit_for_run_id(target_subreddit: str) -> str:
+        """
+        Normalize a subreddit name to a filesystem- and run_id-safe suffix.
+        Keeps only [A-Za-z0-9_-], trims separators, lowercases, and caps length.
+        """
+        raw = (target_subreddit or "").strip()
+        if raw.lower().startswith("r/"):
+            raw = raw[2:]
+        safe = re.sub(r"[^A-Za-z0-9_-]+", "-", raw).strip("-_").lower()
+        # Keep run_id <= 64 chars; timestamp is 15 chars, plus "_" => max 48.
+        return safe[:48]
+
+    @classmethod
+    def _build_default_run_id(cls, *, target_subreddit: str) -> str:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        suffix = cls._normalize_subreddit_for_run_id(target_subreddit)
+        return f"{timestamp}_{suffix}" if suffix else timestamp
+
     def start_run(
         self,
         *,
@@ -132,7 +151,7 @@ class RunManager:
     ) -> RunRecord:
         ensure_runs_dir()
 
-        final_run_id = run_id or datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        final_run_id = run_id or self._build_default_run_id(target_subreddit=target_subreddit)
         validate_run_id(final_run_id)
 
         if not self._execution_lock.acquire(blocking=False):
