@@ -4,5 +4,7 @@ pydantic
 python-dotenv
 google-genai
 praw
+requests
+apify-client
 pandas
 openpyxl
