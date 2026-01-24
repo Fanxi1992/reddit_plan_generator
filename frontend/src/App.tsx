@@ -9,7 +9,6 @@ import type {
   PromptsResponse,
   RunCreateResponse,
   RunStatusResponse,
-  RunOptions,
 } from './api/types'
 import TextAreaField from './components/TextAreaField'
 import InputField from './components/InputField'
@@ -105,14 +104,6 @@ export default function App() {
     '',
   )
   const [preMaterials, setPreMaterials] = useLocalStorageState('draftPreMaterials', '')
-  const [runOptions, setRunOptions] = useLocalStorageState<RunOptions>('draftRunOptions', {
-    top_time_filter: 'month',
-    top_posts_limit: 20,
-    hot_posts_limit: 8,
-    comments_per_post: 7,
-    replies_per_comment: 2,
-    comment_reply_depth: 2,
-  })
 
   const [runId, setRunId] = useLocalStorageState<string | null>('currentRunId', null)
   const [run, setRun] = useState<RunStatusResponse | null>(null)
@@ -408,7 +399,6 @@ export default function App() {
       const payload = {
         target_subreddit: normalizedSub,
         pre_materials: preMaterials,
-        options: runOptions,
         prompt_overrides: promptOverrides,
         wait: false,
       }
@@ -573,22 +563,14 @@ export default function App() {
                   className="btn btn--ghost"
                   type="button"
                   disabled={isLocked}
-                  onClick={() => {
-                    setTargetSubreddit('')
-                    setPreMaterials('')
-                    setRunOptions({
-                      top_time_filter: 'month',
-                      top_posts_limit: 20,
-                      hot_posts_limit: 8,
-                      comments_per_post: 7,
-                      replies_per_comment: 2,
-                      comment_reply_depth: 2,
-                    })
-                  }}
-                >
-                  清空
-                </button>
-              </div>
+                   onClick={() => {
+                     setTargetSubreddit('')
+                     setPreMaterials('')
+                   }}
+                 >
+                   清空
+                 </button>
+               </div>
             </div>
 
             <InputField
@@ -614,61 +596,10 @@ export default function App() {
               monospace
             />
 
-            <details className="details" open={false}>
-              <summary className="details__summary">高级采样参数（可选）</summary>
-              <div className="details__body">
-                <div className="detailsGrid">
-                  <InputField
-                    label="Top posts（time_filter=month）"
-                    value={String(runOptions.top_posts_limit ?? 20)}
-                    onChange={(v) =>
-                      setRunOptions((prev) => ({
-                        ...prev,
-                        top_posts_limit: Math.max(1, Number.parseInt(v || '0', 10) || 20),
-                      }))
-                    }
-                    disabled={isLocked}
-                    type="number"
-                  />
-                  <InputField
-                    label="Hot posts（额外采样）"
-                    value={String(runOptions.hot_posts_limit ?? 8)}
-                    onChange={(v) =>
-                      setRunOptions((prev) => ({
-                        ...prev,
-                        hot_posts_limit: Math.max(0, Number.parseInt(v || '0', 10) || 0),
-                      }))
-                    }
-                    disabled={isLocked}
-                    type="number"
-                  />
-                  <InputField
-                    label="Comments / post"
-                    value={String(runOptions.comments_per_post ?? 7)}
-                    onChange={(v) =>
-                      setRunOptions((prev) => ({
-                        ...prev,
-                        comments_per_post: Math.max(1, Number.parseInt(v || '0', 10) || 7),
-                      }))
-                    }
-                    disabled={isLocked}
-                    type="number"
-                  />
-                  <InputField
-                    label="Replies / comment"
-                    value={String(runOptions.replies_per_comment ?? 2)}
-                    onChange={(v) =>
-                      setRunOptions((prev) => ({
-                        ...prev,
-                        replies_per_comment: Math.max(0, Number.parseInt(v || '0', 10) || 2),
-                      }))
-                    }
-                    disabled={isLocked}
-                    type="number"
-                  />
-                </div>
-              </div>
-            </details>
+            <div className="hint">
+              采样策略：后端固定抓取 <code className="hint__code">Top Week</code> 下最多{' '}
+              <code className="hint__code">20</code> 个帖子（不抓取评论正文）。
+            </div>
           </div>
 
           <div className="card">
