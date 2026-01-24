@@ -497,7 +497,7 @@ def extract_json_object(text: str) -> dict | None:
 
 
 def generate_product_brief(template: str, *, pre_materials: str) -> str:
-    model_id = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
+    model_id = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")
     prompt = template.replace("{{pre_materials}}", pre_materials.strip())
 
     client = genai.Client()
