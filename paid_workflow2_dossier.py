@@ -10,7 +10,7 @@ from google import genai
 from backend.chat_history import append_message, get_history_path, load_history
 
 
-MODEL_ID = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
+MODEL_ID = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")
 
 
 def load_prompts() -> dict[str, str]:
