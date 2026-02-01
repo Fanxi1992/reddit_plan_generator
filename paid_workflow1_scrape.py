@@ -6,7 +6,10 @@ import json
 import os
 import random
 import re
+import shutil
+import subprocess
 import time
+import uuid
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -27,6 +30,11 @@ DEFAULT_BACKOFF_ON_TRANSIENT_RANGE_SEC = (1.0, 2.0)
 DEFAULT_SLEEP_RANGE_SEC = (0.5, 1.5)
 
 APIFY_ACTOR_ID = (os.environ.get("APIFY_ACTOR_ID") or "oAuCIx3ItNrs2okjQ").strip()
+ENABLE_CURL_FALLBACK = (os.environ.get("REDDIT_JSON_ENABLE_CURL_FALLBACK") or "1").strip().lower() not in {
+    "0",
+    "false",
+    "no",
+}
 
 MAX_POSTS_TOP_WEEK = 20
 POST_BODY_MAX_CHARS = 4000
@@ -113,6 +121,93 @@ def _status_label(code: int) -> str:
     return f"HTTP {code}"
 
 
+def _looks_like_network_security_block(response: requests.Response) -> bool:
+    """
+    Reddit sometimes blocks automated HTTP clients and returns a 403 with an HTML page
+    saying "You've been blocked by network security."
+    """
+    if response.status_code != 403:
+        return False
+    content_type = (response.headers.get("content-type") or "").lower()
+    if "text/html" not in content_type:
+        return False
+    text = (response.text or "").lower()
+    return ("blocked by network security" in text) or ("you've been blocked" in text)
+
+
+def _fetch_json_via_curl(
+    url: str,
+    *,
+    headers: dict[str, str],
+    timeout_sec: float,
+) -> tuple[int, dict | None, str | None]:
+    curl_path = shutil.which("curl") or shutil.which("curl.exe")
+    if not curl_path:
+        return 0, None, "curl not found for Reddit JSON fallback"
+
+    marker = f"__curl_status_{uuid.uuid4().hex}__"
+    cmd: list[str] = [
+        curl_path,
+        "-sS",
+        "-L",
+        "--compressed",
+        "--max-time",
+        str(timeout_sec),
+        "-w",
+        f"\n{marker}%{{http_code}}",
+        "--cookie",
+        "over18=1",
+    ]
+
+    # Keep headers minimal; curl already sets some defaults.
+    for key in ("User-Agent", "Accept", "Accept-Language"):
+        value = (headers.get(key) or "").strip()
+        if value:
+            cmd.extend(["-H", f"{key}: {value}"])
+
+    cmd.append(url)
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+    except Exception as e:
+        return 0, None, f"curl fallback failed to start: {e}"
+
+    if result.returncode != 0:
+        stderr = (result.stderr or "").strip()
+        return 0, None, f"curl fallback failed (exit={result.returncode}): {stderr or 'unknown error'}"
+
+    if marker not in result.stdout:
+        return 0, None, "curl fallback returned unexpected output (missing status marker)"
+
+    body, status_tail = result.stdout.rsplit(marker, 1)
+    status_text = status_tail.strip()
+    if not status_text.isdigit():
+        return 0, None, f"curl fallback returned non-numeric status: {status_text!r}"
+
+    status_code = int(status_text)
+    if status_code != 200:
+        snippet = (body or "")[:200].replace("\n", " ").replace("\r", " ")
+        return status_code, None, f"curl fallback returned {_status_label(status_code)} snippet={snippet!r}"
+
+    try:
+        data = json.loads(body)
+    except ValueError:
+        snippet = (body or "")[:200].replace("\n", " ").replace("\r", " ")
+        return 0, None, f"curl fallback returned invalid JSON snippet={snippet!r}"
+
+    if not isinstance(data, dict):
+        return 0, None, f"curl fallback returned unexpected JSON type: {type(data).__name__}"
+
+    return 200, data, None
+
+
 def _fetch_json(
     session: requests.Session,
     url: str,
@@ -145,6 +240,23 @@ def _fetch_json(
             return 429, None, None
 
         if response.status_code != 200:
+            if ENABLE_CURL_FALLBACK and _looks_like_network_security_block(response):
+                curl_status, curl_payload, curl_error = _fetch_json_via_curl(
+                    url,
+                    headers=dict(session.headers),
+                    timeout_sec=timeout_sec,
+                )
+                if curl_error:
+                    return (
+                        0,
+                        None,
+                        "Reddit blocked this HTTP client (403: 'blocked by network security'). "
+                        f"curl fallback error: {curl_error}",
+                    )
+                if curl_status == 200 and curl_payload is not None:
+                    return 200, curl_payload, None
+                return curl_status, None, None
+
             return response.status_code, None, None
 
         try:
@@ -468,4 +580,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
