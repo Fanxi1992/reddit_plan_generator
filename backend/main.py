@@ -80,6 +80,8 @@ def create_run(payload: RunCreateRequest):
             pre_materials=payload.pre_materials,
             options=options,
             prompt_overrides=payload.prompt_overrides,
+            post_v1_mode=payload.post_v1_mode,
+            post_v1_client_draft=payload.post_v1_client_draft,
             run_id=payload.run_id,
             wait=payload.wait,
         )

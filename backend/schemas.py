@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class PromptsResponse(BaseModel):
     prompts: dict[str, str]
 
 TopTimeFilter = Literal["day", "week", "month", "year", "all"]
+PostV1Mode = Literal["generate", "client_draft"]
 
 
 class RunOptions(BaseModel):
@@ -68,6 +69,14 @@ class RunCreateRequest(BaseModel):
         default_factory=dict,
         description="Override any of the default prompts by key.",
     )
+    post_v1_mode: PostV1Mode = Field(
+        default="generate",
+        description="How to produce post_v1.md. 'generate' uses post_draft_prompt; 'client_draft' uses post_v1_client_draft as-is.",
+    )
+    post_v1_client_draft: str | None = Field(
+        default=None,
+        description="Client-provided draft to use as post_v1.md when post_v1_mode is 'client_draft'.",
+    )
     run_id: str | None = Field(
         default=None,
         description="Optional run id (default: timestamp_subreddit).",
@@ -76,6 +85,13 @@ class RunCreateRequest(BaseModel):
         default=False,
         description="If true, block until the run finishes; if false, return immediately and poll status.",
     )
+
+    @model_validator(mode="after")
+    def _validate_post_v1_mode(self) -> "RunCreateRequest":
+        if self.post_v1_mode == "client_draft":
+            if not (self.post_v1_client_draft or "").strip():
+                raise ValueError("post_v1_client_draft is required when post_v1_mode is 'client_draft'.")
+        return self
 
 
 class RunCreateResponse(BaseModel):

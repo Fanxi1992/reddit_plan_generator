@@ -7,10 +7,13 @@ export type PromptsResponse = {
 }
 
 export type RunStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'
+export type PostV1Mode = 'generate' | 'client_draft'
 
 export type RunCreateRequest = {
   target_subreddit: string
   pre_materials: string
+  post_v1_mode?: PostV1Mode
+  post_v1_client_draft?: string | null
   prompt_overrides?: Record<string, string>
   run_id?: string | null
   wait?: boolean

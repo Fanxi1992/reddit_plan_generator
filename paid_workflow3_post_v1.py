@@ -11,6 +11,7 @@ from backend.chat_history import append_message, get_history_path, load_history
 
 
 MODEL_ID = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")
+CLIENT_POST_DRAFT_FILENAME = "client_post_draft.md"
 
 
 def load_prompts() -> dict[str, str]:
@@ -69,6 +70,29 @@ def main() -> int:
     config = read_json(config_path)
     subreddit_name = normalize_subreddit(str(config.get("target_subreddit") or ""))
     current_date = (str(config.get("current_date") or "")).strip() or datetime.date.today().isoformat()
+    post_v1_mode = (str(config.get("post_v1_mode") or "generate")).strip().lower()
+
+    if post_v1_mode == "client_draft":
+        client_filename = (str(config.get("client_post_draft_filename") or "")).strip() or CLIENT_POST_DRAFT_FILENAME
+        client_path = run_dir / client_filename
+        if not client_path.is_file():
+            print(f"Error: missing {client_filename} for post_v1_mode=client_draft")
+            return 1
+
+        client_text = client_path.read_text(encoding="utf-8")
+        if not client_text.strip():
+            print(f"Error: {client_filename} is empty")
+            return 1
+
+        out_path = run_dir / "post_v1.md"
+        out_path.write_text(client_text, encoding="utf-8")
+
+        history_path = get_history_path(run_dir)
+        append_message(history_path, role="user", text=f"[Stage] Post v1 set from client draft for {subreddit_name}.")
+        append_message(history_path, role="model", text=client_text.strip())
+
+        print(f"[ok] Wrote {out_path.name} (from {client_path.name})")
+        return 0
 
     prompts = load_prompts()
     template = (prompts.get("post_draft_prompt") or "").strip()

@@ -146,6 +146,8 @@ class RunManager:
         pre_materials: str,
         options: dict | None,
         prompt_overrides: dict[str, str] | None,
+        post_v1_mode: str,
+        post_v1_client_draft: str | None,
         run_id: str | None,
         wait: bool,
     ) -> RunRecord:
@@ -180,6 +182,8 @@ class RunManager:
                     pre_materials=pre_materials,
                     options=options or {},
                     prompts=prompts,
+                    post_v1_mode=post_v1_mode,
+                    post_v1_client_draft=post_v1_client_draft,
                 )
             else:
                 thread = threading.Thread(
@@ -190,6 +194,8 @@ class RunManager:
                         "pre_materials": pre_materials,
                         "options": options or {},
                         "prompts": prompts,
+                        "post_v1_mode": post_v1_mode,
+                        "post_v1_client_draft": post_v1_client_draft,
                     },
                     daemon=True,
                 )
@@ -303,10 +309,17 @@ class RunManager:
         pre_materials: str,
         options: dict,
         prompts: dict[str, str],
+        post_v1_mode: str,
+        post_v1_client_draft: str | None,
     ) -> None:
         now_local = datetime.datetime.now().astimezone()
         current_date = now_local.date().isoformat()
         current_datetime = now_local.isoformat(timespec="seconds")
+
+        client_post_draft_filename = "client_post_draft.md"
+        post_v1_mode_norm = (post_v1_mode or "generate").strip().lower()
+        if post_v1_mode_norm not in {"generate", "client_draft"}:
+            post_v1_mode_norm = "generate"
 
         config_path = record.run_dir / "run_config.json"
         pre_materials_path = record.run_dir / "pre_materials.md"
@@ -326,15 +339,24 @@ class RunManager:
             record.started_at = datetime.datetime.now(datetime.UTC)
             record.persist()
 
-            config_path.write_text(
-                json_dumps_pretty(
-                    {
-                        "target_subreddit": target_subreddit,
-                        "options": options,
-                        "current_date": current_date,
-                        "current_datetime": current_datetime,
-                    }
+            config: dict[str, object] = {
+                "target_subreddit": target_subreddit,
+                "options": options,
+                "current_date": current_date,
+                "current_datetime": current_datetime,
+                "post_v1_mode": post_v1_mode_norm,
+            }
+            if post_v1_mode_norm == "client_draft":
+                if not (post_v1_client_draft or "").strip():
+                    raise ValueError("post_v1_client_draft is required when post_v1_mode is 'client_draft'.")
+                config["client_post_draft_filename"] = client_post_draft_filename
+                (record.run_dir / client_post_draft_filename).write_text(
+                    post_v1_client_draft or "",
+                    encoding="utf-8",
                 )
+
+            config_path.write_text(
+                json_dumps_pretty(config)
                 + "\n",
                 encoding="utf-8",
             )
@@ -349,6 +371,11 @@ class RunManager:
             env["RUN_CONFIG_FILE"] = str(config_path)
 
             with log_path.open("a", encoding="utf-8") as log_file:
+                if post_v1_mode_norm == "client_draft":
+                    log_file.write(
+                        f"[config] post_v1_mode=client_draft; saved {client_post_draft_filename} for stage post_v1\n"
+                    )
+                    log_file.flush()
                 # ------------------------------------------------------------
                 # Stage 0: Persist pre-materials + extract product brief
                 # ------------------------------------------------------------

@@ -25,6 +25,7 @@ import {
 import { useLocalStorageState } from './hooks/useLocalStorageState'
 
 type BackendStatus = 'online' | 'offline' | 'unknown'
+type PostV1Mode = 'generate' | 'client_draft'
 type OutputKind =
   | 'post_final'
   | 'engagement_kit'
@@ -104,6 +105,14 @@ export default function App() {
     '',
   )
   const [preMaterials, setPreMaterials] = useLocalStorageState('draftPreMaterials', '')
+  const [postV1Mode, setPostV1Mode] = useLocalStorageState<PostV1Mode>(
+    'draftPostV1Mode',
+    'generate',
+  )
+  const [clientPostV1Draft, setClientPostV1Draft] = useLocalStorageState(
+    'draftClientPostV1Draft',
+    '',
+  )
 
   const [runId, setRunId] = useLocalStorageState<string | null>('currentRunId', null)
   const [run, setRun] = useState<RunStatusResponse | null>(null)
@@ -142,7 +151,18 @@ export default function App() {
 
   const chatEnabled = !!runId && !!run && run.status !== 'pending' && run.status !== 'running'
 
-  const promptErrors = useMemo(() => validatePrompts(draftPrompts), [draftPrompts])
+  const clientPostV1DraftError =
+    postV1Mode === 'client_draft' && !clientPostV1Draft.trim()
+      ? '不能为空（客户初稿模式需要粘贴文案）'
+      : null
+
+  const promptErrors = useMemo(() => {
+    const errors = validatePrompts(draftPrompts)
+    if (postV1Mode === 'client_draft') {
+      errors.post_draft_prompt = null
+    }
+    return errors
+  }, [draftPrompts, postV1Mode])
   const subredditError = targetSubreddit.trim() ? null : '不能为空'
   const materialsError = preMaterials.trim() ? null : '不能为空'
 
@@ -151,11 +171,19 @@ export default function App() {
     if (!defaultPrompts) return false
     if (subredditError) return false
     if (materialsError) return false
+    if (clientPostV1DraftError) return false
     for (const k of PROMPT_KEYS) {
       if (promptErrors[k]) return false
     }
     return true
-  }, [defaultPrompts, isLocked, materialsError, promptErrors, subredditError])
+  }, [
+    clientPostV1DraftError,
+    defaultPrompts,
+    isLocked,
+    materialsError,
+    promptErrors,
+    subredditError,
+  ])
 
   const promptOverrides = useMemo(() => {
     if (!defaultPrompts) return {}
@@ -400,6 +428,10 @@ export default function App() {
         target_subreddit: normalizedSub,
         pre_materials: preMaterials,
         prompt_overrides: promptOverrides,
+        post_v1_mode: postV1Mode,
+        ...(postV1Mode === 'client_draft'
+          ? { post_v1_client_draft: clientPostV1Draft }
+          : {}),
         wait: false,
       }
       const res = await fetchJson<RunCreateResponse>('/api/runs', {
@@ -637,8 +669,10 @@ export default function App() {
                   defaultPrompts &&
                   (draftPrompts[meta.key] ?? '').trim() !==
                     (defaultPrompts[meta.key] ?? '').trim()
-                const error = promptErrors[meta.key]
-                const required = meta.requiredPlaceholders
+                const isPostV1Prompt = meta.key === 'post_draft_prompt'
+                const isClientDraftMode = isPostV1Prompt && postV1Mode === 'client_draft'
+                const error = isClientDraftMode ? null : promptErrors[meta.key]
+                const required = isClientDraftMode ? [] : meta.requiredPlaceholders
 
                 return (
                   <details className="accordion__item" key={meta.key} open={meta.key === 'brief_prompt'}>
@@ -653,6 +687,27 @@ export default function App() {
 
                     <div className="accordion__content">
                       <div className="muted">{meta.description}</div>
+                      {isPostV1Prompt ? (
+                        <div className="hint">
+                          初稿模式：
+                          <button
+                            className={`btn btn--sm ${postV1Mode === 'generate' ? 'btn--primary' : 'btn--ghost'}`}
+                            type="button"
+                            disabled={isLocked}
+                            onClick={() => setPostV1Mode('generate')}
+                          >
+                            通用模式（生成 v1）
+                          </button>
+                          <button
+                            className={`btn btn--sm ${postV1Mode === 'client_draft' ? 'btn--primary' : 'btn--ghost'}`}
+                            type="button"
+                            disabled={isLocked}
+                            onClick={() => setPostV1Mode('client_draft')}
+                          >
+                            客户初稿模式（原样直通）
+                          </button>
+                        </div>
+                      ) : null}
                       {required.length ? (
                         <div className="hint">
                           必须保留占位符：
@@ -664,12 +719,48 @@ export default function App() {
                         </div>
                       ) : null}
 
+                      {isClientDraftMode ? (
+                        <TextAreaField
+                          label="客户初稿（将原样作为 post_v1.md）"
+                          value={clientPostV1Draft}
+                          onChange={setClientPostV1Draft}
+                          placeholder="粘贴客户提供的文案（可包含 Title/Body/Markdown）。内容将原样写入 post_v1.md。"
+                          helper="此模式下不会调用大模型生成 v1；post_draft_prompt 将被忽略（可保留用于通用模式）。"
+                          error={clientPostV1DraftError}
+                          disabled={isLocked}
+                          rows={12}
+                          monospace
+                          rightActions={
+                            <>
+                              <button
+                                className="btn btn--ghost"
+                                type="button"
+                                disabled={isLocked}
+                                onClick={() => setClientPostV1Draft('')}
+                              >
+                                清空
+                              </button>
+                              <button
+                                className="btn btn--ghost"
+                                type="button"
+                                onClick={() => navigator.clipboard.writeText(clientPostV1Draft ?? '')}
+                              >
+                                复制
+                              </button>
+                            </>
+                          }
+                        />
+                      ) : null}
+
                       <TextAreaField
                         label={meta.key}
                         value={draftPrompts[meta.key] ?? ''}
                         onChange={(v) => setDraftPrompts((prev) => ({ ...prev, [meta.key]: v }))}
+                        helper={
+                          isClientDraftMode ? '客户初稿模式下，该提示词不会被执行（仅通用模式使用）。' : undefined
+                        }
                         error={error}
-                        disabled={isLocked}
+                        disabled={isLocked || isClientDraftMode}
                         rows={10}
                         monospace
                         rightActions={
