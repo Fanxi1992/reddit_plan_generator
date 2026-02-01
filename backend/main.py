@@ -82,6 +82,7 @@ def create_run(payload: RunCreateRequest):
             prompt_overrides=payload.prompt_overrides,
             post_v1_mode=payload.post_v1_mode,
             post_v1_client_draft=payload.post_v1_client_draft,
+            stop_after_mod_review=payload.stop_after_mod_review,
             run_id=payload.run_id,
             wait=payload.wait,
         )

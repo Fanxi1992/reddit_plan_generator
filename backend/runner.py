@@ -148,6 +148,7 @@ class RunManager:
         prompt_overrides: dict[str, str] | None,
         post_v1_mode: str,
         post_v1_client_draft: str | None,
+        stop_after_mod_review: bool,
         run_id: str | None,
         wait: bool,
     ) -> RunRecord:
@@ -184,6 +185,7 @@ class RunManager:
                     prompts=prompts,
                     post_v1_mode=post_v1_mode,
                     post_v1_client_draft=post_v1_client_draft,
+                    stop_after_mod_review=stop_after_mod_review,
                 )
             else:
                 thread = threading.Thread(
@@ -196,6 +198,7 @@ class RunManager:
                         "prompts": prompts,
                         "post_v1_mode": post_v1_mode,
                         "post_v1_client_draft": post_v1_client_draft,
+                        "stop_after_mod_review": stop_after_mod_review,
                     },
                     daemon=True,
                 )
@@ -311,6 +314,7 @@ class RunManager:
         prompts: dict[str, str],
         post_v1_mode: str,
         post_v1_client_draft: str | None,
+        stop_after_mod_review: bool,
     ) -> None:
         now_local = datetime.datetime.now().astimezone()
         current_date = now_local.date().isoformat()
@@ -345,6 +349,7 @@ class RunManager:
                 "current_date": current_date,
                 "current_datetime": current_datetime,
                 "post_v1_mode": post_v1_mode_norm,
+                "stop_after_mod_review": bool(stop_after_mod_review),
             }
             if post_v1_mode_norm == "client_draft":
                 if not (post_v1_client_draft or "").strip():
@@ -374,6 +379,11 @@ class RunManager:
                 if post_v1_mode_norm == "client_draft":
                     log_file.write(
                         f"[config] post_v1_mode=client_draft; saved {client_post_draft_filename} for stage post_v1\n"
+                    )
+                    log_file.flush()
+                if stop_after_mod_review:
+                    log_file.write(
+                        "[config] stop_after_mod_review=true; workflow will stop after paid_workflow4_mod_review.py\n"
                     )
                     log_file.flush()
                 # ------------------------------------------------------------
@@ -420,7 +430,18 @@ class RunManager:
                 log_file.write("[stage0_brief] Saved product_brief.md/product_brief.json and seeded chat history\n")
                 log_file.flush()
 
-                for script_path in WORKFLOW_SCRIPTS:
+                scripts_to_run = WORKFLOW_SCRIPTS
+                if stop_after_mod_review:
+                    stop_at = "paid_workflow4_mod_review.py"
+                    stop_index = next(
+                        (idx for idx, script in enumerate(WORKFLOW_SCRIPTS) if script.name == stop_at),
+                        None,
+                    )
+                    if stop_index is None:
+                        raise RuntimeError(f"{stop_at} not found in WORKFLOW_SCRIPTS")
+                    scripts_to_run = WORKFLOW_SCRIPTS[: stop_index + 1]
+
+                for script_path in scripts_to_run:
                     if control and control.cancel_event.is_set():
                         raise RunCancelledError()
 

@@ -14,6 +14,7 @@ export type RunCreateRequest = {
   pre_materials: string
   post_v1_mode?: PostV1Mode
   post_v1_client_draft?: string | null
+  stop_after_mod_review?: boolean
   prompt_overrides?: Record<string, string>
   run_id?: string | null
   wait?: boolean

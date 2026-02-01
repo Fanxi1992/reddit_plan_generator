@@ -77,6 +77,10 @@ class RunCreateRequest(BaseModel):
         default=None,
         description="Client-provided draft to use as post_v1.md when post_v1_mode is 'client_draft'.",
     )
+    stop_after_mod_review: bool = Field(
+        default=False,
+        description="If true, stop the workflow after mod_review.md is generated (stages 5-7 will be skipped).",
+    )
     run_id: str | None = Field(
         default=None,
         description="Optional run id (default: timestamp_subreddit).",

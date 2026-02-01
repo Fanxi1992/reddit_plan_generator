@@ -29,6 +29,7 @@ Example request body:
   "pre_materials": "Draft plan... product docs... constraints... links...",
   "post_v1_mode": "generate",
   "post_v1_client_draft": null,
+  "stop_after_mod_review": false,
   "options": {
     "top_time_filter": "month",
     "top_posts_limit": 20,
@@ -44,6 +45,7 @@ Example request body:
 
 Notes:
 - Set `post_v1_mode` to `"client_draft"` and provide `post_v1_client_draft` to use a client-provided draft as `post_v1.md` (no LLM call for the v1 stage).
+- Set `stop_after_mod_review` to `true` to stop the workflow after `mod_review.md` is generated (skips stages 5-7; no post_v2/post_final/engagement_kit).
 
 3) Poll status:
 - `GET /api/runs/{run_id}`

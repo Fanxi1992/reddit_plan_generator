@@ -113,6 +113,10 @@ export default function App() {
     'draftClientPostV1Draft',
     '',
   )
+  const [stopAfterModReview, setStopAfterModReview] = useLocalStorageState<boolean>(
+    'draftStopAfterModReview',
+    false,
+  )
 
   const [runId, setRunId] = useLocalStorageState<string | null>('currentRunId', null)
   const [run, setRun] = useState<RunStatusResponse | null>(null)
@@ -304,6 +308,24 @@ export default function App() {
     )
   }, [run])
 
+  useEffect(() => {
+    if (run?.status !== 'succeeded') return
+    if (!availableOutputs.length) return
+    if (availableOutputs.includes(selectedOutput)) return
+
+    const preferred: OutputKind[] = [
+      'post_final',
+      'engagement_kit',
+      'post_v2',
+      'mod_review',
+      'post_v1',
+      'subreddit_dossier',
+      'product_brief',
+    ]
+    const next = preferred.find((k) => availableOutputs.includes(k)) ?? availableOutputs[0]
+    setSelectedOutput(next)
+  }, [availableOutputs, run?.status, selectedOutput])
+
   async function loadChatHistory() {
     if (!runId) return
     setChatError(null)
@@ -432,6 +454,7 @@ export default function App() {
         ...(postV1Mode === 'client_draft'
           ? { post_v1_client_draft: clientPostV1Draft }
           : {}),
+        stop_after_mod_review: stopAfterModReview,
         wait: false,
       }
       const res = await fetchJson<RunCreateResponse>('/api/runs', {
@@ -834,6 +857,26 @@ export default function App() {
               </div>
             </div>
 
+            <div className="hint">
+              流程模式：
+              <button
+                className={`btn btn--sm ${stopAfterModReview ? 'btn--ghost' : 'btn--primary'}`}
+                type="button"
+                disabled={isLocked}
+                onClick={() => setStopAfterModReview(false)}
+              >
+                完整流程（7 阶段）
+              </button>
+              <button
+                className={`btn btn--sm ${stopAfterModReview ? 'btn--primary' : 'btn--ghost'}`}
+                type="button"
+                disabled={isLocked}
+                onClick={() => setStopAfterModReview(true)}
+              >
+                仅到 Mod 审核（4 阶段）
+              </button>
+            </div>
+
             <InputField
               label="接续旧任务（run_id）"
               value={resumeRunId}
@@ -960,14 +1003,20 @@ export default function App() {
                 </div>
 
                 <div className="results__actions">
-                  <a
+                  <button
                     className="btn btn--primary"
-                    href={`/api/runs/${runId}/download/${selectedOutput}`}
-                    target="_blank"
-                    rel="noreferrer"
+                    type="button"
+                    disabled={!availableOutputs.includes(selectedOutput)}
+                    onClick={() =>
+                      window.open(
+                        `/api/runs/${runId}/download/${selectedOutput}`,
+                        '_blank',
+                        'noopener,noreferrer',
+                      )
+                    }
                   >
                     下载当前
-                  </a>
+                  </button>
                   <button
                     className="btn btn--ghost"
                     type="button"
