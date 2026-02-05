@@ -10,7 +10,7 @@ from google import genai
 from backend.chat_history import append_message, get_history_path, load_history
 
 
-MODEL_ID = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")
+MODEL_ID = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
 CLIENT_POST_DRAFT_FILENAME = "client_post_draft.md"
 
 

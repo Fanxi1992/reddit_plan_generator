@@ -322,7 +322,7 @@ def chat(run_id: str, payload: ChatSendRequest):
             raise HTTPException(status_code=400, detail=str(e))
 
         try:
-            chat_session = GENAI.chats.create(model=os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview"), history=history)
+            chat_session = GENAI.chats.create(model=os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview"), history=history)
             response = chat_session.send_message(payload.message)
             reply = response.text or ""
         except Exception as e:
