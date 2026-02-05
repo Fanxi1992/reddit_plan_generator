@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 import threading
@@ -11,7 +12,7 @@ from fastapi.responses import FileResponse
 from google import genai
 
 from .chat_history import HISTORY_FILENAME, append_message, get_history_path, load_history, load_history_messages
-from .prompts import load_default_prompts
+from .prompts import PROMPT_KEYS, load_default_prompts, load_prompts_file
 from .runner import RunAlreadyRunningError, RunManager, RunNotFoundError, RunStatus
 from .schemas import (
     ChatHistoryResponse,
@@ -20,6 +21,7 @@ from .schemas import (
     PromptsResponse,
     RunCreateRequest,
     RunCreateResponse,
+    RunRestoreResponse,
     RunStatusResponse,
  )
 from .storage import find_key_outputs, get_run_dir, validate_run_id
@@ -151,6 +153,83 @@ def get_run(run_id: str):
         error=record.error,
         outputs=outputs_names,
         downloads=downloads,
+    )
+
+
+@app.get("/api/runs/{run_id}/restore", response_model=RunRestoreResponse)
+def restore_run(run_id: str):
+    try:
+        validate_run_id(run_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    run_dir = get_run_dir(run_id)
+    if not run_dir.is_dir():
+        raise HTTPException(status_code=404, detail="Run not found.")
+
+    config_path = run_dir / "run_config.json"
+    prompts_path = run_dir / "prompts.json"
+    pre_materials_path = run_dir / "pre_materials.md"
+
+    if not config_path.is_file():
+        raise HTTPException(status_code=404, detail="run_config.json not available; cannot restore.")
+    if not prompts_path.is_file():
+        raise HTTPException(status_code=404, detail="prompts.json not available; cannot restore.")
+    if not pre_materials_path.is_file():
+        raise HTTPException(status_code=404, detail="pre_materials.md not available; cannot restore.")
+
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to read run_config.json.")
+
+    if not isinstance(config, dict):
+        raise HTTPException(status_code=500, detail="Invalid run_config.json.")
+
+    target_subreddit = config.get("target_subreddit")
+    if not isinstance(target_subreddit, str) or not target_subreddit.strip():
+        raise HTTPException(status_code=500, detail="Invalid run_config.json: missing target_subreddit.")
+    target_subreddit = target_subreddit.strip()
+
+    post_v1_mode_raw = config.get("post_v1_mode")
+    post_v1_mode = post_v1_mode_raw.strip().lower() if isinstance(post_v1_mode_raw, str) else "generate"
+    if post_v1_mode not in {"generate", "client_draft"}:
+        post_v1_mode = "generate"
+
+    stop_after_mod_review = bool(config.get("stop_after_mod_review", False))
+
+    post_v1_client_draft: str | None = None
+    if post_v1_mode == "client_draft":
+        filename = config.get("client_post_draft_filename")
+        if not isinstance(filename, str) or not filename.strip():
+            raise HTTPException(
+                status_code=500,
+                detail="Invalid run_config.json: missing client_post_draft_filename.",
+            )
+        draft_path = run_dir / filename
+        if not draft_path.is_file():
+            raise HTTPException(status_code=404, detail=f"{filename} not available; cannot restore.")
+        post_v1_client_draft = draft_path.read_text(encoding="utf-8")
+
+    try:
+        prompts = load_prompts_file(prompts_path)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to read prompts.json.")
+
+    missing_keys = [k for k in PROMPT_KEYS if k not in prompts]
+    if missing_keys:
+        raise HTTPException(status_code=500, detail=f"prompts.json missing keys: {missing_keys}")
+
+    pre_materials = pre_materials_path.read_text(encoding="utf-8")
+
+    return RunRestoreResponse(
+        run_id=run_id,
+        target_subreddit=target_subreddit,
+        pre_materials=pre_materials,
+        prompts={k: prompts[k] for k in PROMPT_KEYS},
+        post_v1_mode=post_v1_mode,
+        post_v1_client_draft=post_v1_client_draft,
+        stop_after_mod_review=stop_after_mod_review,
     )
 
 

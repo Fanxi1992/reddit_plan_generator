@@ -118,6 +118,25 @@ class RunStatusResponse(BaseModel):
     downloads: dict[str, str] = Field(default_factory=dict)
 
 
+class RunRestoreResponse(BaseModel):
+    run_id: str
+    target_subreddit: str
+    pre_materials: str
+    prompts: dict[str, str]
+    post_v1_mode: PostV1Mode = Field(
+        default="generate",
+        description="How post_v1.md was produced for this run.",
+    )
+    post_v1_client_draft: str | None = Field(
+        default=None,
+        description="Client draft content when post_v1_mode is 'client_draft'.",
+    )
+    stop_after_mod_review: bool = Field(
+        default=False,
+        description="If true, the workflow was configured to stop after Mod review.",
+    )
+
+
 class ChatMessage(BaseModel):
     role: Literal["user", "model"]
     text: str

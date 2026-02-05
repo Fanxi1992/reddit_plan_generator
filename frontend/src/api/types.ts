@@ -40,6 +40,16 @@ export type RunStatusResponse = {
   downloads: Record<string, string>
 }
 
+export type RunRestoreResponse = {
+  run_id: string
+  target_subreddit: string
+  pre_materials: string
+  prompts: Record<string, string>
+  post_v1_mode: PostV1Mode
+  post_v1_client_draft: string | null
+  stop_after_mod_review: boolean
+}
+
 export type ChatRole = 'user' | 'model'
 
 export type ChatMessage = {

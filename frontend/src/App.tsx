@@ -8,6 +8,7 @@ import type {
   HealthResponse,
   PromptsResponse,
   RunCreateResponse,
+  RunRestoreResponse,
   RunStatusResponse,
 } from './api/types'
 import TextAreaField from './components/TextAreaField'
@@ -133,6 +134,9 @@ export default function App() {
   const [resumeLoading, setResumeLoading] = useState(false)
   const [resumeError, setResumeError] = useState<string | null>(null)
 
+  const [restoreLoading, setRestoreLoading] = useState(false)
+  const [restoreError, setRestoreError] = useState<string | null>(null)
+
   const [selectedOutput, setSelectedOutput] = useState<OutputKind>('post_final')
   const [outputMarkdown, setOutputMarkdown] = useState<Partial<Record<OutputKind, string>>>({})
   const [outputLoading, setOutputLoading] = useState<OutputKind | null>(null)
@@ -151,7 +155,8 @@ export default function App() {
     (runId !== null &&
       run?.status !== 'succeeded' &&
       run?.status !== 'failed' &&
-      run?.status !== 'cancelled')
+      run?.status !== 'cancelled' &&
+      run?.status !== 'unknown')
 
   const chatEnabled = !!runId && !!run && run.status !== 'pending' && run.status !== 'running'
 
@@ -203,6 +208,10 @@ export default function App() {
       return next.slice(0, 12)
     })
   }, [runId, setRecentRunIds])
+
+  useEffect(() => {
+    setRestoreError(null)
+  }, [runId])
 
   useEffect(() => {
     let cancelled = false
@@ -437,6 +446,53 @@ export default function App() {
     }
   }
 
+  function applyRestoreSnapshot(data: RunRestoreResponse) {
+    setTargetSubreddit(data.target_subreddit ?? '')
+    setPreMaterials(data.pre_materials ?? '')
+    setStopAfterModReview(!!data.stop_after_mod_review)
+    setPostV1Mode(data.post_v1_mode ?? 'generate')
+    setClientPostV1Draft(
+      data.post_v1_mode === 'client_draft' ? (data.post_v1_client_draft ?? '') : '',
+    )
+
+    setDraftPrompts(() => {
+      const next: Record<string, string> = {}
+      for (const key of PROMPT_KEYS) {
+        next[key] = data.prompts?.[key] ?? defaultPrompts?.[key] ?? ''
+      }
+      return next
+    })
+  }
+
+  async function restoreDraftFromCurrentRun() {
+    if (!runId) return
+    if (isLocked) return
+
+    if (!defaultPrompts) {
+      setRestoreError('默认提示词尚未加载，无法恢复。')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `将用 run_id=${runId} 的历史输入/提示词覆盖左侧草稿？\n\n提示：这不会影响该 run 的聊天；重新运行会生成新的 run_id。`,
+    )
+    if (!confirmed) return
+
+    setRestoreError(null)
+    setRestoreLoading(true)
+    try {
+      const data = await fetchJson<RunRestoreResponse>(`/api/runs/${runId}/restore`, {
+        timeoutMs: 30000,
+      })
+      applyRestoreSnapshot(data)
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : '恢复失败，请检查后端/网络'
+      setRestoreError(msg)
+    } finally {
+      setRestoreLoading(false)
+    }
+  }
+
   async function startRun() {
     if (!defaultPrompts) return
     setStartError(null)
@@ -644,7 +700,7 @@ export default function App() {
               placeholder={
                 '例如：初步方案、产品详细资料、素材链接、硬性约束（must include / must avoid）…'
               }
-              helper="后端只会保存抽取后的 product_brief.md；不会保存原始前置资料文本。"
+              helper="后端会将原始前置资料保存到 runs/<run_id>/pre_materials.md 以支持恢复；但对话/追问上下文仅使用抽取后的 product_brief.md。"
               error={materialsError}
               disabled={isLocked}
               rows={12}
@@ -885,7 +941,7 @@ export default function App() {
                 if (resumeError) setResumeError(null)
               }}
               placeholder="20260110_114637"
-              helper="切换到该 run_id，并自动加载该任务的历史输出/聊天记录。"
+              helper="切换到该 run_id，并自动加载该任务的历史输出/聊天记录（不会覆盖左侧草稿）。"
               error={resumeError}
               disabled={isLocked || resumeLoading}
               rightActions={
@@ -917,6 +973,28 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+              </div>
+            ) : null}
+
+            {runId ? (
+              <div className="hint">
+                恢复草稿：
+                <button
+                  className="btn btn--ghost btn--sm"
+                  type="button"
+                  disabled={isLocked || restoreLoading || loadingPrompts || !defaultPrompts}
+                  onClick={restoreDraftFromCurrentRun}
+                >
+                  {restoreLoading ? '恢复中…' : '恢复到左侧'}
+                </button>
+                <span className="tag tag--warn">会覆盖左侧草稿</span>
+              </div>
+            ) : null}
+
+            {restoreError ? (
+              <div className="alert alert--bad">
+                <div className="alert__title">恢复失败</div>
+                <div className="alert__body">{restoreError}</div>
               </div>
             ) : null}
 
