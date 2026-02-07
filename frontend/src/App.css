@@ -242,8 +242,14 @@
 .strategyGrid {
   margin-top: 10px;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
+}
+
+.strategyGridActions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
 }
 
 .strategyCard {
@@ -875,15 +881,9 @@ details[open] .accordion__chev {
   color: rgba(15, 23, 42, 0.86);
 }
 
-@media (max-width: 1260px) {
+@media (max-width: 1240px) {
   .strategyGrid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 1080px) {
-  .strategyGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -893,7 +893,7 @@ details[open] .accordion__chev {
   }
 
   .strategyGrid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .preview {
@@ -908,14 +908,20 @@ details[open] .accordion__chev {
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 800px) {
   .strategyGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 560px) {
   .strategyGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 400px) {
+  .strategyGrid {
+    grid-template-columns: 1fr;
   }
 }

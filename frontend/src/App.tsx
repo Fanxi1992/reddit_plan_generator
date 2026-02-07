@@ -125,6 +125,7 @@ export default function App() {
   const [loadingStrategies, setLoadingStrategies] = useState(false)
   const [strategiesError, setStrategiesError] = useState<string | null>(null)
   const [strategyCatalog, setStrategyCatalog] = useState<StrategyDef[]>([])
+  const [showAllStrategies, setShowAllStrategies] = useState(false)
 
   const [defaultPrompts, setDefaultPrompts] = useState<Record<string, string> | null>(
     null,
@@ -269,6 +270,19 @@ export default function App() {
     }
     return base
   }, [strategyCatalog, strategyId])
+
+  const visibleStrategyCards = useMemo(() => {
+    const LIMIT = 8
+    if (showAllStrategies || strategyCards.length <= LIMIT) return strategyCards
+
+    const first = strategyCards.slice(0, LIMIT)
+    if (first.some((x) => x.st.id === strategyId)) return first
+
+    const selected = strategyCards.find((x) => x.st.id === strategyId)
+    if (!selected) return first
+
+    return [selected, ...first.filter((x) => x.st.id !== strategyId)].slice(0, LIMIT)
+  }, [showAllStrategies, strategyCards, strategyId])
 
   const selectedStrategy = useMemo(() => {
     const found = strategyCatalog.find((st) => st.id === strategyId)
@@ -859,7 +873,7 @@ export default function App() {
                 选择主贴写作脚本；后端会在 Post v1 / Mod 审核 / Post v2 / Post Final 阶段持续注入该策略，避免后续修改跑偏。
               </div>
               <div className="strategyGrid" role="radiogroup" aria-label="脚本策略（Strategy Selector）">
-                {strategyCards.map(({ st, disabled }) => {
+                {visibleStrategyCards.map(({ st, disabled }) => {
                   const badge = toStrategyBadge(st.id)
                   const title = stripStrategyTitle(st.title, badge)
                   const brand = st.brand
@@ -902,6 +916,20 @@ export default function App() {
                   )
                 })}
               </div>
+              {strategyCards.length > 8 ? (
+                <div className="strategyGridActions">
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => setShowAllStrategies((v) => !v)}
+                    disabled={isLocked || loadingStrategies}
+                  >
+                    {showAllStrategies
+                      ? '收起（仅显示前 8 个）'
+                      : `展开更多（还有 ${Math.max(strategyCards.length - 8, 0)} 个）`}
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <TextAreaField
