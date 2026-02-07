@@ -12,7 +12,7 @@
   gap: 16px;
   padding: 16px 20px;
   backdrop-filter: blur(14px);
-  background: rgba(5, 9, 18, 0.55);
+  background: rgba(255, 255, 255, 0.72);
   border-bottom: 1px solid var(--border);
 }
 
@@ -43,7 +43,7 @@
   padding: 6px 10px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .runId__label {
@@ -54,7 +54,7 @@
 .runId__value {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text);
 }
 
 .layout {
@@ -75,7 +75,7 @@
 .card {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: linear-gradient(180deg, var(--card), rgba(255, 255, 255, 0.04));
+  background: linear-gradient(180deg, var(--card2), var(--card));
   box-shadow: var(--shadow);
   overflow: hidden;
 }
@@ -86,7 +86,7 @@
   justify-content: space-between;
   gap: 14px;
   padding: 16px 16px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .card__title {
@@ -115,13 +115,13 @@
   font-weight: 650;
   font-size: 13px;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  background: rgba(2, 6, 23, 0.04);
   transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
 }
 
 .btn:hover {
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(2, 6, 23, 0.06);
 }
 
 .btn:active {
@@ -135,16 +135,16 @@
 
 .btn--primary {
   background: linear-gradient(135deg, var(--primary), var(--primary2));
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(15, 23, 42, 0.12);
 }
 
 .btn--primary:hover {
-  background: linear-gradient(135deg, #8b4dff, #b08cff);
+  background: linear-gradient(135deg, #0284c7, #16a34a);
 }
 
 .btn--danger {
   background: linear-gradient(135deg, #ff3b5c, #ff8a3d);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(15, 23, 42, 0.12);
 }
 
 .btn--danger:hover {
@@ -152,8 +152,8 @@
 }
 
 .btn--ghost {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(2, 6, 23, 0.02);
+  border-color: rgba(15, 23, 42, 0.1);
 }
 
 .btn--sm {
@@ -176,7 +176,7 @@
 .field__label {
   font-size: 12px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(15, 23, 42, 0.86);
 }
 
 .field__actions {
@@ -195,17 +195,17 @@
   margin-top: 10px;
   padding: 12px 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.22);
-  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text);
   resize: vertical;
   outline: none;
   transition: border-color 120ms ease, background 120ms ease;
 }
 
 .field__textarea:focus {
-  border-color: rgba(159, 103, 255, 0.8);
-  background: rgba(0, 0, 0, 0.28);
+  border-color: rgba(14, 165, 233, 0.7);
+  background: rgba(255, 255, 255, 0.94);
 }
 
 .field__textarea:disabled {
@@ -223,16 +223,16 @@
   margin-top: 10px;
   padding: 12px 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.22);
-  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text);
   outline: none;
   transition: border-color 120ms ease, background 120ms ease;
 }
 
 .field__input:focus {
-  border-color: rgba(159, 103, 255, 0.8);
-  background: rgba(0, 0, 0, 0.28);
+  border-color: rgba(14, 165, 233, 0.7);
+  background: rgba(255, 255, 255, 0.94);
 }
 
 .field__input:disabled {
@@ -252,9 +252,9 @@
 
 .details__body {
   margin-top: 10px;
-  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border: 1px dashed rgba(15, 23, 42, 0.14);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(2, 6, 23, 0.02);
   padding: 12px;
 }
 
@@ -271,7 +271,7 @@
 .field__error {
   margin-top: 8px;
   font-size: 12px;
-  color: rgba(255, 140, 140, 0.95);
+  color: var(--bad);
 }
 
 .recentRuns {
@@ -301,9 +301,9 @@
 }
 
 .accordion__item {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(2, 6, 23, 0.02);
   margin: 10px 6px;
   overflow: hidden;
 }
@@ -356,7 +356,7 @@ details[open] .accordion__chev {
 
 .hint {
   padding: 10px 14px 0;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(15, 23, 42, 0.72);
   font-size: 12px;
   display: flex;
   gap: 8px;
@@ -367,8 +367,8 @@ details[open] .accordion__chev {
 .hint__code {
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(2, 6, 23, 0.03);
+  border: 1px solid rgba(15, 23, 42, 0.12);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
 }
@@ -377,18 +377,18 @@ details[open] .accordion__chev {
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(2, 6, 23, 0.03);
 }
 
 .tag--warn {
-  border-color: rgba(245, 158, 11, 0.35);
-  color: rgba(255, 205, 120, 0.95);
+  border-color: rgba(217, 119, 6, 0.35);
+  color: rgba(146, 64, 14, 0.95);
 }
 
 .tag--bad {
-  border-color: rgba(239, 68, 68, 0.35);
-  color: rgba(255, 150, 150, 0.95);
+  border-color: rgba(220, 38, 38, 0.35);
+  color: rgba(185, 28, 28, 0.95);
 }
 
 .pill {
@@ -396,30 +396,30 @@ details[open] .accordion__chev {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(2, 6, 23, 0.03);
 }
 
 .pill--ok {
-  border-color: rgba(16, 185, 129, 0.35);
-  color: rgba(134, 255, 210, 0.95);
+  border-color: rgba(22, 163, 74, 0.35);
+  color: rgba(22, 163, 74, 0.95);
 }
 
 .pill--bad {
-  border-color: rgba(239, 68, 68, 0.35);
-  color: rgba(255, 160, 160, 0.95);
+  border-color: rgba(220, 38, 38, 0.35);
+  color: rgba(220, 38, 38, 0.95);
 }
 
 .pill--neutral {
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(15, 23, 42, 0.82);
 }
 
 .alert {
   margin: 12px 16px 16px;
   padding: 12px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .alert--bad {
@@ -435,7 +435,7 @@ details[open] .accordion__chev {
 .alert__body {
   margin-top: 6px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.86);
+  color: rgba(15, 23, 42, 0.86);
   line-height: 1.5;
 }
 
@@ -480,9 +480,9 @@ details[open] .accordion__chev {
 }
 
 .chat__log {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.72);
   overflow: auto;
   padding: 10px 10px;
   max-height: 420px;
@@ -495,28 +495,28 @@ details[open] .accordion__chev {
 }
 
 .chatMsg {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.62);
   padding: 10px 10px;
 }
 
 .chatMsg--user {
-  border-color: rgba(159, 103, 255, 0.28);
-  background: rgba(159, 103, 255, 0.08);
+  border-color: rgba(14, 165, 233, 0.35);
+  background: rgba(14, 165, 233, 0.1);
 }
 
 .chatMsg__meta {
   font-size: 12px;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(15, 23, 42, 0.72);
   margin-bottom: 8px;
 }
 
 .chatMsg__summary {
   cursor: pointer;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(15, 23, 42, 0.72);
   user-select: none;
 }
 
@@ -540,7 +540,7 @@ details[open] .accordion__chev {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(15, 23, 42, 0.9);
 }
 
 .tabs {
@@ -551,16 +551,16 @@ details[open] .accordion__chev {
 
 .tab {
   text-align: left;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 12px;
   padding: 10px 10px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(2, 6, 23, 0.02);
   cursor: pointer;
   transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
 }
 
 .tab:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(2, 6, 23, 0.04);
 }
 
 .tab:active {
@@ -573,8 +573,8 @@ details[open] .accordion__chev {
 }
 
 .tab--active {
-  border-color: rgba(159, 103, 255, 0.7);
-  background: rgba(124, 58, 237, 0.16);
+  border-color: rgba(14, 165, 233, 0.7);
+  background: rgba(14, 165, 233, 0.1);
 }
 
 .tab__label {
@@ -584,7 +584,7 @@ details[open] .accordion__chev {
 
 .tab__desc {
   margin-top: 4px;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.35;
 }
@@ -599,9 +599,9 @@ details[open] .accordion__chev {
 
 .preview {
   margin-top: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.72);
   overflow: hidden;
   display: grid;
   grid-template-columns: 220px 1fr;
@@ -610,7 +610,7 @@ details[open] .accordion__chev {
 }
 
 .preview__toc {
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(15, 23, 42, 0.12);
   padding: 14px 10px 14px 12px;
   overflow: auto;
 }
@@ -619,7 +619,7 @@ details[open] .accordion__chev {
   font-weight: 800;
   font-size: 12px;
   margin-bottom: 10px;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(15, 23, 42, 0.82);
 }
 
 .preview__tocList {
@@ -630,9 +630,9 @@ details[open] .accordion__chev {
 
 .tocItem {
   text-align: left;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(2, 6, 23, 0.02);
+  color: rgba(15, 23, 42, 0.82);
   border-radius: 10px;
   padding: 8px 10px;
   cursor: pointer;
@@ -645,8 +645,8 @@ details[open] .accordion__chev {
 }
 
 .tocItem:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(2, 6, 23, 0.04);
+  border-color: rgba(15, 23, 42, 0.18);
 }
 
 .tocItem--lvl2 {
@@ -690,11 +690,11 @@ details[open] .accordion__chev {
 
 .md p {
   margin: 10px 0;
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(15, 23, 42, 0.88);
 }
 
 .md a {
-  color: rgba(198, 168, 255, 0.95);
+  color: rgba(2, 132, 199, 0.95);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -710,16 +710,16 @@ details[open] .accordion__chev {
 
 .md hr {
   border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 1px solid rgba(15, 23, 42, 0.12);
   margin: 18px 0;
 }
 
 .md blockquote {
   margin: 12px 0;
   padding: 8px 12px;
-  border-left: 3px solid rgba(159, 103, 255, 0.7);
-  background: rgba(159, 103, 255, 0.08);
-  color: rgba(255, 255, 255, 0.86);
+  border-left: 3px solid rgba(14, 165, 233, 0.55);
+  background: rgba(14, 165, 233, 0.08);
+  color: rgba(15, 23, 42, 0.86);
   border-radius: 10px;
 }
 
@@ -728,15 +728,15 @@ details[open] .accordion__chev {
   font-size: 12px;
   padding: 2px 6px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(2, 6, 23, 0.04);
 }
 
 .md pre {
   padding: 12px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(2, 6, 23, 0.04);
   overflow: auto;
 }
 
@@ -752,26 +752,26 @@ details[open] .accordion__chev {
   margin: 12px 0;
   overflow: hidden;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(15, 23, 42, 0.12);
 }
 
 .md th,
 .md td {
   padding: 10px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   vertical-align: top;
 }
 
 .md th {
   text-align: left;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.82);
-  background: rgba(255, 255, 255, 0.06);
+  color: rgba(15, 23, 42, 0.82);
+  background: rgba(2, 6, 23, 0.03);
 }
 
 .md td {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.86);
+  color: rgba(15, 23, 42, 0.86);
 }
 
 @media (max-width: 980px) {
@@ -787,6 +787,6 @@ details[open] .accordion__chev {
 
   .preview__toc {
     border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.12);
   }
 }

@@ -436,13 +436,18 @@ export default function App() {
     if (outputMarkdown[selectedOutput]) return
     if (outputLoading) return
 
+    const kind = selectedOutput
     let cancelled = false
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 25000)
 
-    async function loadMarkdown(kind: OutputKind) {
+    async function loadMarkdown() {
       setOutputError(null)
       setOutputLoading(kind)
       try {
-        const res = await fetch(`/api/runs/${runId}/download/${kind}`)
+        const res = await fetch(`/api/runs/${runId}/download/${kind}`, {
+          signal: controller.signal,
+        })
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`)
         }
@@ -450,15 +455,25 @@ export default function App() {
         if (cancelled) return
         setOutputMarkdown((prev) => ({ ...prev, [kind]: text }))
       } catch {
-        if (!cancelled) setOutputError('加载预览失败（可尝试直接下载）')
+        if (cancelled) return
+        if (controller.signal.aborted) {
+          setOutputError('预览加载超时或已取消（可尝试直接下载）')
+        } else {
+          setOutputError('加载预览失败（可尝试直接下载）')
+        }
       } finally {
+        window.clearTimeout(timeout)
         if (!cancelled) setOutputLoading(null)
       }
     }
 
-    void loadMarkdown(selectedOutput)
+    void loadMarkdown()
     return () => {
       cancelled = true
+      window.clearTimeout(timeout)
+      controller.abort()
+      // Avoid getting stuck in dev StrictMode where effects are mounted/unmounted twice.
+      setOutputLoading((prev) => (prev === kind ? null : prev))
     }
   }, [availableOutputs, outputLoading, outputMarkdown, run?.status, runId, selectedOutput])
 
