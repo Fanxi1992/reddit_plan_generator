@@ -1,0 +1,65 @@
+{
+  "id": "s14_migration_story",
+  "title": "S14 迁移故事（Migration Story）",
+  "description": "“从 A 迁到 B”天然带细节与可信度：动机、步骤、踩坑、反直觉点、回滚策略。适合工具/平台/服务类产品。品牌名只出现 1 次作为迁移目的地/候选背景。",
+  "pov": "either",
+  "brand": {
+    "min_mentions": 1,
+    "max_mentions": 1,
+    "allow_in_title": false,
+    "notes": "标题避免带品牌；正文品牌名 1 次；强调限制条件与回滚。"
+  },
+  "title_templates": [
+    "We migrated from {{old_stack}} to {{new_stack}} — what broke, what surprised us",
+    "If you’re considering moving off {{old_stack}}, here’s what to watch out for",
+    "Migration notes: {{topic}} (mistakes included)"
+  ],
+  "beats": [
+    "先说迁移动机：痛点 + 约束",
+    "写迁移计划（最小可行）+ 回滚",
+    "列出 3-5 个踩坑点（细节）",
+    "写反直觉发现（价值）",
+    "品牌名 1 次作为迁移目标/候选背景",
+    "问社区：有没有更稳的迁移路径？"
+  ],
+  "draft_template_lines": [
+    "# Post Draft (v1)",
+    "",
+    "Type: Text",
+    "Flair: None",
+    "",
+    "## Title",
+    "We migrated from {{old_stack}} to {{new_stack}} — what broke, what surprised us",
+    "",
+    "## Body",
+    "Posting some migration notes because I couldn’t find many “warts and all” writeups that match our constraints.",
+    "",
+    "### Why we migrated",
+    "- Pain: {{pain_1}}",
+    "- Pain: {{pain_2}}",
+    "- Constraint: {{constraint_1}} (we couldn’t accept {{non_negotiable}})",
+    "",
+    "### The plan (minimal + reversible)",
+    "- Phase 1: {{phase_1}}",
+    "- Phase 2: {{phase_2}}",
+    "- Rollback plan: {{rollback_plan}}",
+    "",
+    "### What broke / gotchas",
+    "1) {{gotcha_1}} -> fix: {{fix_1}}",
+    "2) {{gotcha_2}} -> fix: {{fix_2}}",
+    "3) {{gotcha_3}} -> fix: {{fix_3}}",
+    "",
+    "### What surprised us",
+    "- {{surprise_1}}",
+    "- {{surprise_2}}",
+    "",
+    "### Outcome so far",
+    "- Win: {{win_1}}",
+    "- Tradeoff: {{tradeoff_1}}",
+    "",
+    "For context, the new tool/service we moved to was {{product_name}} (one mention) because it fit {{constraint_1}} better than our previous setup.",
+    "",
+    "If you’ve done a similar migration under {{constraint_1}}, what would you do differently? Any “don’t skip this step” advice?"
+  ]
+}
+

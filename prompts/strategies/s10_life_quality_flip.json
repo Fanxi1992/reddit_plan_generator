@@ -1,0 +1,64 @@
+{
+  "id": "s10_life_quality_flip",
+  "title": "S10 生活质量翻转（Quality-of-Life Flip）",
+  "description": "用“我以为是性格/意志力问题，结果是系统/工具问题”做反差：先描述自己的负面状态，再把根因归到一个可修复的流程缺陷，最后给出改变与余味。品牌名在正文轻描淡写提 1 次即可。",
+  "pov": "user",
+  "brand": {
+    "min_mentions": 1,
+    "max_mentions": 1,
+    "allow_in_title": false,
+    "notes": "不要写成成功学；重点在具体变化前后的对比与代价；品牌名 1 次。"
+  },
+  "title_templates": [
+    "I thought I was just bad at {{thing}}… turns out my workflow was broken",
+    "I wasn’t “burnt out”, I was stuck in {{loop}} — one change fixed it",
+    "Small fix, weirdly huge mental relief: {{hook}}"
+  ],
+  "beats": [
+    "承认自己的负面状态（真实，不装）",
+    "描述反复循环的“坏流程”细节（可视化）",
+    "一个触发事件让你意识到根因",
+    "改动：新流程 + 为什么能工作",
+    "tradeoff（防广告味）",
+    "品牌名 1 次作为背景"
+  ],
+  "draft_template_lines": [
+    "# Post Draft (v1)",
+    "",
+    "Type: Text",
+    "Flair: None",
+    "",
+    "## Title",
+    "I thought I was just bad at {{thing}}… turns out my workflow was broken",
+    "",
+    "## Body",
+    "For a while I kept telling myself I was just lazy / disorganized / bad at {{thing}}. It was starting to feel like a personality flaw.",
+    "",
+    "But what it actually looked like day-to-day was this loop:",
+    "1) {{loop_step_1}}",
+    "2) {{loop_step_2}}",
+    "3) {{loop_step_3}}",
+    "4) {{loop_step_4}}",
+    "",
+    "The worst part wasn’t even the time. It was the constant “I’m failing at basics” feeling.",
+    "",
+    "The moment it clicked for me was {{moment_of_realization}}. I realized the problem wasn’t “me”, it was {{root_cause_in_plain_english}}.",
+    "",
+    "### The change",
+    "I switched to {{new_process_in_1_line}}.",
+    "",
+    "What improved:",
+    "- {{improvement_1}}",
+    "- {{improvement_2}}",
+    "- {{improvement_3}}",
+    "",
+    "Tradeoffs / what I still don’t love:",
+    "- {{tradeoff_1}}",
+    "- {{tradeoff_2}}",
+    "",
+    "If anyone asks what I used: {{product_name}} (one mention) was part of it, but honestly the bigger win was the process change.",
+    "",
+    "Question for people who’ve been at this longer: what’s your “one small process change” that removed a ton of mental load?"
+  ]
+}
+

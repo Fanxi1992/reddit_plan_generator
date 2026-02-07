@@ -8,6 +8,7 @@ from pathlib import Path
 from google import genai
 
 from backend.chat_history import append_message, get_history_path, load_history
+from backend.strategies import apply_strategy_spec, build_strategy_spec
 
 
 MODEL_ID = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
@@ -71,6 +72,13 @@ def main() -> int:
     subreddit_name = normalize_subreddit(str(config.get("target_subreddit") or ""))
     current_date = (str(config.get("current_date") or "")).strip() or datetime.date.today().isoformat()
     post_v1_mode = (str(config.get("post_v1_mode") or "generate")).strip().lower()
+    strategy_id_raw = config.get("strategy_id")
+    strategy_id = strategy_id_raw.strip() if isinstance(strategy_id_raw, str) else "free"
+    if not strategy_id:
+        strategy_id = "free"
+    strategy_notes_raw = config.get("strategy_notes")
+    strategy_notes = strategy_notes_raw.strip() if isinstance(strategy_notes_raw, str) else ""
+    strategy_notes = strategy_notes or None
 
     if post_v1_mode == "client_draft":
         client_filename = (str(config.get("client_post_draft_filename") or "")).strip() or CLIENT_POST_DRAFT_FILENAME
@@ -99,6 +107,9 @@ def main() -> int:
     if not template:
         print("Error: post_draft_prompt is empty.")
         return 1
+
+    strategy_spec = build_strategy_spec(strategy_id=strategy_id, strategy_notes=strategy_notes, stage="post_v1")
+    template = apply_strategy_spec(template, strategy_spec=strategy_spec)
 
     brief_path = run_dir / "product_brief.md"
     dossier_path = run_dir / "subreddit_dossier.md"

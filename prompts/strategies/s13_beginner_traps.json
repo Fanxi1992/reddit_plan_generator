@@ -1,0 +1,58 @@
+{
+  "id": "s13_beginner_traps",
+  "title": "S13 新手坑清单（Beginner Traps）",
+  "description": "“我踩过的坑”是最通用的价值输出形式：把经验写成可迁移的坑位 + 预警信号 + 更稳的做法。适合几乎所有垂直社区。品牌名 1 次作为你用于避坑的一个工具/背景。",
+  "pov": "either",
+  "brand": {
+    "min_mentions": 1,
+    "max_mentions": 1,
+    "allow_in_title": false,
+    "notes": "避免写成产品手册；坑位要具体；品牌名只出现 1 次。"
+  },
+  "title_templates": [
+    "Things I wish I knew before doing {{task}} (so you don’t repeat my mistakes)",
+    "Beginner traps in {{domain}} that cost me way too much time",
+    "If you’re new to {{domain}}, watch out for these {{n}} pitfalls"
+  ],
+  "beats": [
+    "开头交代你不是专家，只是踩坑总结（可信）",
+    "列 4-6 个“坑位”并配一个具体症状",
+    "每个坑给 1 个更稳的替代做法",
+    "强调适用边界（避免绝对化）",
+    "品牌名 1 次作为你用来解决其中一个坑的背景",
+    "收尾请大家补充坑位（不强求互动）"
+  ],
+  "draft_template_lines": [
+    "# Post Draft (v1)",
+    "",
+    "Type: Text",
+    "Flair: None",
+    "",
+    "## Title",
+    "Things I wish I knew before doing {{task}} (so you don’t repeat my mistakes)",
+    "",
+    "## Body",
+    "I’m not an expert, just someone who lost an embarrassing amount of time to avoidable mistakes in {{domain}}. Sharing in case it helps someone else.",
+    "",
+    "### Pitfall 1: {{pitfall_1}}",
+    "How it showed up: {{symptom_1}}",
+    "What I do now: {{fix_1}}",
+    "",
+    "### Pitfall 2: {{pitfall_2}}",
+    "How it showed up: {{symptom_2}}",
+    "What I do now: {{fix_2}}",
+    "",
+    "### Pitfall 3: {{pitfall_3}}",
+    "How it showed up: {{symptom_3}}",
+    "What I do now: {{fix_3}}",
+    "",
+    "### Pitfall 4: {{pitfall_4}}",
+    "How it showed up: {{symptom_4}}",
+    "What I do now: {{fix_4}}",
+    "",
+    "One small tool note: I used {{product_name}} (one mention) to address {{which_pitfall}}, mainly because {{why}}.",
+    "",
+    "If you’ve been doing {{domain}} longer, what pitfall would you add that beginners keep repeating?"
+  ]
+}
+

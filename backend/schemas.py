@@ -12,6 +12,42 @@ TopTimeFilter = Literal["day", "week", "month", "year", "all"]
 PostV1Mode = Literal["generate", "client_draft"]
 
 
+class StrategyBrandRules(BaseModel):
+    min_mentions: int = Field(
+        default=1,
+        ge=0,
+        description="Minimum number of brand mentions in the main post body.",
+    )
+    max_mentions: int = Field(
+        default=1,
+        ge=0,
+        description="Maximum number of brand mentions in the main post body.",
+    )
+    allow_in_title: bool = Field(
+        default=False,
+        description="Whether the brand can appear in the post title.",
+    )
+    notes: str | None = Field(
+        default=None,
+        description="Human notes about the brand mention rule.",
+    )
+
+
+class StrategyDef(BaseModel):
+    id: str = Field(..., min_length=1, description="Stable strategy id.")
+    title: str = Field(..., min_length=1, description="Display title for the operator UI.")
+    description: str = Field(default="", description="What this strategy is for.")
+    pov: str | None = Field(default=None, description="Suggested POV (e.g. user/founder/either).")
+    brand: StrategyBrandRules = Field(default_factory=StrategyBrandRules)
+    title_templates: list[str] = Field(default_factory=list)
+    beats: list[str] = Field(default_factory=list)
+    draft_template_md: str = Field(default="", description="Draft template (markdown).")
+
+
+class StrategiesResponse(BaseModel):
+    strategies: list[StrategyDef] = Field(default_factory=list)
+
+
 class RunOptions(BaseModel):
     top_time_filter: TopTimeFilter = Field(
         default="month",
@@ -69,6 +105,15 @@ class RunCreateRequest(BaseModel):
         default_factory=dict,
         description="Override any of the default prompts by key.",
     )
+    strategy_id: str = Field(
+        default="free",
+        max_length=64,
+        description="Selected script strategy id from /api/strategies (default: free).",
+    )
+    strategy_notes: str | None = Field(
+        default=None,
+        description="Optional operator notes to tailor the selected strategy.",
+    )
     post_v1_mode: PostV1Mode = Field(
         default="generate",
         description="How to produce post_v1.md. 'generate' uses post_draft_prompt; 'client_draft' uses post_v1_client_draft as-is.",
@@ -123,6 +168,14 @@ class RunRestoreResponse(BaseModel):
     target_subreddit: str
     pre_materials: str
     prompts: dict[str, str]
+    strategy_id: str = Field(
+        default="free",
+        description="Script strategy id used for this run.",
+    )
+    strategy_notes: str | None = Field(
+        default=None,
+        description="Operator notes used for this run.",
+    )
     post_v1_mode: PostV1Mode = Field(
         default="generate",
         description="How post_v1.md was produced for this run.",

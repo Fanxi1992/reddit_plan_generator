@@ -1,0 +1,67 @@
+{
+  "id": "s01_builder_field_report",
+  "title": "S01 创始人复盘（Builder Field Report）",
+  "description": "创始人/作者第一人称：复盘一个具体失误或教训，输出可迁移结论，并请求专业反馈。",
+  "pov": "founder",
+  "brand": {
+    "min_mentions": 1,
+    "max_mentions": 2,
+    "allow_in_title": false,
+    "notes": "可在正文出现 1-2 次品牌名（身份透明）；避免堆功能清单。"
+  },
+  "title_templates": [
+    "I built {{product_category}} for {{target_user}} and learned the hard way that {{lesson_hook}}",
+    "I shipped {{feature_or_change}}… and users hated it. Here’s the postmortem + fix",
+    "If you’re building in {{domain}}, don’t make my mistake: {{mistake_hook}}"
+  ],
+  "beats": [
+    "一句话自证不是来卖：交代身份 + 目的（求拍砖）",
+    "先给可迁移教训（读者先拿到价值）",
+    "讲一个具体翻车瞬间（带数字/细节）",
+    "给出可执行修正动作（不是愿景）",
+    "收尾只问 1 个高质量问题"
+  ],
+  "draft_template_lines": [
+    "# Post Draft (v1)",
+    "",
+    "Type: Text",
+    "Flair: None",
+    "",
+    "## Title",
+    "I built {{product_category}} for {{target_user}} and learned the hard way that {{lesson_hook}}",
+    "",
+    "## Body",
+    "I’m one of the people building {{product_name}}. Not here to pitch it. I’m here because I made a mistake that feels embarrassingly common in {{domain}}.",
+    "",
+    "### The “obvious” assumption I got wrong",
+    "I assumed {{assumption}}.",
+    "It sounded reasonable because {{why_it_sounded_right}}.",
+    "",
+    "### What actually happened (the concrete failure)",
+    "- Context: {{context_in_2_lines}}",
+    "- The trigger: {{trigger_event}}",
+    "- The user reaction: {{quote_or_paraphrase_user_reaction}}",
+    "- The measurable symptom: {{metric_drop_or_bad_signal}} (activation %, churn, support tickets, refunds, time-to-value)",
+    "",
+    "The worst part was {{specific_scene_detail}}.",
+    "",
+    "### Root cause (in plain English)",
+    "It wasn’t “users are dumb”. It was:",
+    "1) {{root_cause_1}}",
+    "2) {{root_cause_2}}",
+    "3) {{root_cause_3}}",
+    "",
+    "If I compress it into one sentence: {{one_sentence_principle}}.",
+    "",
+    "### What I’m changing now",
+    "I’m doing {{change_1}} because {{reason_1}}.",
+    "I’m doing {{change_2}} because {{reason_2}}.",
+    "I’m explicitly NOT doing {{tempting_change}} because {{why_not}}.",
+    "",
+    "### The question (please roast this)",
+    "If you’ve shipped in {{domain}}, what’s the best way to {{hard_question}} without {{common_failure_mode}}?",
+    "",
+    "(If useful, I can share {{optional_artifact}}.)"
+  ]
+}
+

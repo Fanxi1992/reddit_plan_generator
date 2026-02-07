@@ -1,0 +1,56 @@
+{
+  "id": "s15_myth_to_method",
+  "title": "S15 从神话到方法（Myth → Method）",
+  "description": "把一个常见“神话/口号”拆成可执行的方法论：先指出神话为何误导，再给 3-5 步的现实做法和适用边界。适合专业社区。品牌名 1 次作为你方法中的一个工具/例子，不做结论。",
+  "pov": "either",
+  "brand": {
+    "min_mentions": 1,
+    "max_mentions": 1,
+    "allow_in_title": false,
+    "notes": "避免写成教程广告；强调适用条件与限制；品牌名只出现 1 次。"
+  },
+  "title_templates": [
+    "“{{myth}}” is not a strategy — here’s what actually worked for {{goal}}",
+    "Stop chasing {{myth}}. Try this method instead (with caveats)",
+    "If you’re stuck on {{problem}}, a practical framework that helped me"
+  ],
+  "beats": [
+    "先引用神话/口号（共识）",
+    "指出它缺失的关键条件（为什么误导）",
+    "给出方法论步骤（每步一句 + 目的）",
+    "给限制条件与失败信号（可信）",
+    "品牌名 1 次作为你用到的一个工具/例子",
+    "问社区：你们的方法论是什么？"
+  ],
+  "draft_template_lines": [
+    "# Post Draft (v1)",
+    "",
+    "Type: Text",
+    "Flair: None",
+    "",
+    "## Title",
+    "“{{myth}}” is not a strategy — here’s what actually worked for {{goal}}",
+    "",
+    "## Body",
+    "I keep seeing people repeat: “{{myth}}”. And I get why it’s appealing. It’s a simple story.",
+    "",
+    "But in practice it fails because it ignores {{missing_condition}}. If you don’t have that, you end up with {{failure_outcome}}.",
+    "",
+    "Here’s the practical method that helped me make progress on {{goal}} without pretending there’s a silver bullet:",
+    "",
+    "### A workable method (not a vibe)",
+    "1) {{step_1}} (purpose: {{purpose_1}})",
+    "2) {{step_2}} (purpose: {{purpose_2}})",
+    "3) {{step_3}} (purpose: {{purpose_3}})",
+    "4) {{step_4}} (purpose: {{purpose_4}})",
+    "",
+    "### Caveats / when it breaks",
+    "- {{caveat_1}}",
+    "- {{caveat_2}}",
+    "",
+    "One tool note: I used {{product_name}} (one mention) to support {{which_step}}, mainly because {{why}}.",
+    "",
+    "What’s the “myth” you wish people would stop repeating in {{domain}}, and what method do you replace it with?"
+  ]
+}
+

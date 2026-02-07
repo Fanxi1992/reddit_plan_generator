@@ -1,0 +1,51 @@
+{
+  "id": "free",
+  "title": "Free 自由模式（不限定脚本）",
+  "description": "不强制固定叙事脚本；仍要求标题不出现品牌名，正文至少提及一次品牌名，并保持 subreddit 原生风格。",
+  "pov": "either",
+  "brand": {
+    "min_mentions": 1,
+    "max_mentions": 1,
+    "allow_in_title": false,
+    "notes": "默认只出现 1 次品牌名；不写链接；不写强 CTA。"
+  },
+  "title_templates": [
+    "{{problem_hook}} (what finally helped me)",
+    "I thought {{old_belief}} was normal… turns out it was fixable",
+    "Quick notes from trying to solve {{pain_point}} in {{domain}}"
+  ],
+  "beats": [
+    "开场一句话交代场景与动机（不是推销）",
+    "描述具体痛点/摩擦链条（可验证细节）",
+    "给出你尝试的变化（含 tradeoff）",
+    "提及品牌名 1 次作为背景信息",
+    "收尾提出一个高质量问题（只问 1 个）"
+  ],
+  "draft_template_lines": [
+    "# Post Draft (v1)",
+    "",
+    "Type: Text",
+    "Flair: None",
+    "",
+    "## Title",
+    "{{title}}",
+    "",
+    "## Body",
+    "Context: {{context_in_1_2_lines}}.",
+    "",
+    "What was annoying / costly:",
+    "- {{pain_point_1}}",
+    "- {{pain_point_2}}",
+    "",
+    "What I tried:",
+    "- {{attempt_1}} -> {{result_1}}",
+    "- {{attempt_2}} -> {{result_2}}",
+    "",
+    "What actually helped (with an honest tradeoff): {{new_approach}}.",
+    "Downside: {{tradeoff}}.",
+    "",
+    "If anyone asks: I used {{product_name}} for this (one mention). Not claiming it’s magic, it just removed a repeated friction point.",
+    "",
+    "Question: {{single_question}}"
+  ]
+}

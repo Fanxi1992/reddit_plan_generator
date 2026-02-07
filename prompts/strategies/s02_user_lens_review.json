@@ -1,0 +1,61 @@
+{
+  "id": "s02_user_lens_review",
+  "title": "S02 用户体验分享（User-Lens Review）",
+  "description": "用户视角：先讲真实痛点链条与转折瞬间，再轻描淡写提一次品牌名作为背景。",
+  "pov": "user",
+  "brand": {
+    "min_mentions": 1,
+    "max_mentions": 1,
+    "allow_in_title": false,
+    "notes": "品牌名只出现 1 次；强调 tradeoff；避免夸张形容词。"
+  },
+  "title_templates": [
+    "I thought {{pain_point}} was normal… turns out it was a solvable workflow issue",
+    "Small change, big difference: {{before_after_hook}}",
+    "If {{scenario}} drives you nuts, this is what finally helped me"
+  ],
+  "beats": [
+    "承认以前的错误归因（共鸣）",
+    "写旧流程的烦躁链条（细节）",
+    "给一个转折瞬间（可信）",
+    "给新流程 + honest tradeoff",
+    "品牌名只提 1 次，像顺手交代"
+  ],
+  "draft_template_lines": [
+    "# Post Draft (v1)",
+    "",
+    "Type: Text",
+    "Flair: None",
+    "",
+    "## Title",
+    "I thought {{pain_point}} was normal… turns out it was a solvable workflow issue",
+    "",
+    "## Body",
+    "For a long time I assumed {{old_belief}}.",
+    "Like, I genuinely thought everyone just {{annoying_normalized_thing}} and moved on.",
+    "",
+    "My “normal” looked like this:",
+    "- {{old_step_1}}",
+    "- {{old_step_2}}",
+    "- {{old_step_3}}",
+    "- (bonus) {{old_step_4_that_sounds_ridiculous_but_real}}",
+    "",
+    "The moment that finally broke me was {{specific_moment}}.",
+    "Not because it was catastrophic, but because it was the 50th tiny cut this week.",
+    "",
+    "So I changed one thing: {{new_approach_in_1_line}}.",
+    "",
+    "What surprised me:",
+    "- The win wasn’t {{fake_win}}.",
+    "- The win was {{real_win_metric_or_feeling}} (fewer context switches / less mental load / less cleanup).",
+    "",
+    "Tradeoff (so this doesn’t read like a commercial):",
+    "- {{honest_tradeoff_1}}",
+    "- {{honest_tradeoff_2}}",
+    "",
+    "If anyone cares, the tool I landed on was {{product_name}} (one mention). It didn’t “change my life”, it just removed a dumb friction point.",
+    "",
+    "Curious what other people do for {{pain_point}} that doesn’t involve {{bad_solution}}."
+  ]
+}
+

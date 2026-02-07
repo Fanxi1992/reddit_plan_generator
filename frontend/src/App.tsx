@@ -7,12 +7,15 @@ import type {
   ChatSendResponse,
   HealthResponse,
   PromptsResponse,
+  StrategiesResponse,
+  StrategyDef,
   RunCreateResponse,
   RunRestoreResponse,
   RunStatusResponse,
 } from './api/types'
 import TextAreaField from './components/TextAreaField'
 import InputField from './components/InputField'
+import SelectField from './components/SelectField'
 import StatusPill from './components/StatusPill'
 import MarkdownPreview from './components/MarkdownPreview'
 import MarkdownBlock from './components/MarkdownBlock'
@@ -92,6 +95,9 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('unknown')
   const [loadingPrompts, setLoadingPrompts] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [loadingStrategies, setLoadingStrategies] = useState(false)
+  const [strategiesError, setStrategiesError] = useState<string | null>(null)
+  const [strategyCatalog, setStrategyCatalog] = useState<StrategyDef[]>([])
 
   const [defaultPrompts, setDefaultPrompts] = useState<Record<string, string> | null>(
     null,
@@ -106,6 +112,8 @@ export default function App() {
     '',
   )
   const [preMaterials, setPreMaterials] = useLocalStorageState('draftPreMaterials', '')
+  const [strategyId, setStrategyId] = useLocalStorageState<string>('draftStrategyId', 'free')
+  const [strategyNotes, setStrategyNotes] = useLocalStorageState('draftStrategyNotes', '')
   const [postV1Mode, setPostV1Mode] = useLocalStorageState<PostV1Mode>(
     'draftPostV1Mode',
     'generate',
@@ -199,6 +207,42 @@ export default function App() {
     return diffPrompts(defaultPrompts, draftPrompts)
   }, [defaultPrompts, draftPrompts])
 
+  const strategyOptions = useMemo(() => {
+    if (strategyCatalog.length) {
+      return strategyCatalog.map((st) => ({ value: st.id, label: st.title }))
+    }
+    const base = [{ value: 'free', label: 'Free 自由模式（不限定脚本）' }]
+    if (strategyId && strategyId !== 'free') {
+      return [
+        { value: strategyId, label: `(未知策略: ${strategyId}，将按 free 处理)`, disabled: true },
+        ...base,
+      ]
+    }
+    return base
+  }, [strategyCatalog, strategyId])
+
+  const selectedStrategy = useMemo(() => {
+    const found = strategyCatalog.find((st) => st.id === strategyId)
+    if (found) return found
+    return strategyCatalog.find((st) => st.id === 'free') ?? null
+  }, [strategyCatalog, strategyId])
+
+  const strategyPreviewMarkdown = useMemo(() => {
+    if (!selectedStrategy) return ''
+    const brand = selectedStrategy.brand
+    const titlePatterns = (selectedStrategy.title_templates ?? []).map((t) => `- ${t}`).join('\n')
+    const beats = (selectedStrategy.beats ?? []).map((b) => `- ${b}`).join('\n')
+    const template = (selectedStrategy.draft_template_md ?? '').trim()
+    let md = `# ${selectedStrategy.title}\n\n${selectedStrategy.description ?? ''}\n\n## Hard Rules\n`
+    md += `- Brand mentions: ${brand?.min_mentions ?? 1}–${brand?.max_mentions ?? 1} times in **Body**\n`
+    md += `- Brand in title: ${(brand?.allow_in_title ?? false) ? 'allowed' : 'not allowed'}\n`
+    if (brand?.notes) md += `- Notes: ${brand.notes}\n`
+    if (titlePatterns) md += `\n## Title Patterns (choose 1)\n${titlePatterns}\n`
+    if (beats) md += `\n## Beat Sheet (follow this pacing)\n${beats}\n`
+    if (template) md += `\n## Draft Template\n\n${template}\n`
+    return md.trim()
+  }, [selectedStrategy])
+
   useEffect(() => {
     if (!runId) return
     if (!RUN_ID_RE.test(runId)) return
@@ -219,6 +263,8 @@ export default function App() {
     async function load() {
       setLoadingPrompts(true)
       setLoadError(null)
+      setLoadingStrategies(true)
+      setStrategiesError(null)
 
       try {
         await fetchJson<HealthResponse>('/api/health', { timeoutMs: 4000 })
@@ -245,6 +291,19 @@ export default function App() {
       } finally {
         if (!cancelled) setLoadingPrompts(false)
       }
+
+      try {
+        const data = await fetchJson<StrategiesResponse>('/api/strategies', { timeoutMs: 15000 })
+        if (cancelled) return
+        setStrategyCatalog(data.strategies ?? [])
+      } catch (e) {
+        if (cancelled) return
+        const msg = e instanceof ApiError ? e.message : '无法加载脚本策略，请检查后端'
+        setStrategiesError(msg)
+        setStrategyCatalog([])
+      } finally {
+        if (!cancelled) setLoadingStrategies(false)
+      }
     }
 
     void load()
@@ -258,6 +317,12 @@ export default function App() {
     if (!defaultPrompts) return
     setDraftPromptOverrides(promptOverrides)
   }, [defaultPrompts, promptOverrides, setDraftPromptOverrides])
+
+  useEffect(() => {
+    if (!strategyCatalog.length) return
+    const ids = new Set(strategyCatalog.map((s) => s.id))
+    if (!ids.has(strategyId)) setStrategyId('free')
+  }, [strategyCatalog, strategyId, setStrategyId])
 
   useEffect(() => {
     if (!runId) return
@@ -449,6 +514,8 @@ export default function App() {
   function applyRestoreSnapshot(data: RunRestoreResponse) {
     setTargetSubreddit(data.target_subreddit ?? '')
     setPreMaterials(data.pre_materials ?? '')
+    setStrategyId(data.strategy_id ?? 'free')
+    setStrategyNotes(data.strategy_notes ?? '')
     setStopAfterModReview(!!data.stop_after_mod_review)
     setPostV1Mode(data.post_v1_mode ?? 'generate')
     setClientPostV1Draft(
@@ -505,6 +572,8 @@ export default function App() {
       const payload = {
         target_subreddit: normalizedSub,
         pre_materials: preMaterials,
+        strategy_id: strategyId,
+        strategy_notes: strategyNotes.trim() ? strategyNotes : null,
         prompt_overrides: promptOverrides,
         post_v1_mode: postV1Mode,
         ...(postV1Mode === 'client_draft'
@@ -677,6 +746,8 @@ export default function App() {
                    onClick={() => {
                      setTargetSubreddit('')
                      setPreMaterials('')
+                     setStrategyId('free')
+                     setStrategyNotes('')
                    }}
                  >
                    清空
@@ -706,6 +777,45 @@ export default function App() {
               rows={12}
               monospace
             />
+
+            {loadingStrategies ? (
+              <div className="empty">正在加载脚本策略…</div>
+            ) : strategiesError ? (
+              <div className="alert alert--bad">
+                <div className="alert__title">脚本策略加载失败</div>
+                <div className="alert__body">{strategiesError}</div>
+              </div>
+            ) : null}
+
+            <SelectField
+              label="脚本策略（Strategy Selector）"
+              value={strategyId}
+              onChange={setStrategyId}
+              options={strategyOptions}
+              helper="选择主贴写作脚本；后端会在 Post v1 / Mod 审核 / Post v2 / Post Final 阶段持续注入该策略，避免后续修改跑偏。"
+              disabled={isLocked || loadingStrategies}
+            />
+
+            <TextAreaField
+              label="策略备注（可选）"
+              value={strategyNotes}
+              onChange={setStrategyNotes}
+              placeholder="例如：品牌名必须出现 2 次；不要提价格；强调隐私；更像真实用户而不是创始人…"
+              helper="会作为 Custom Notes 注入到策略说明中（所有后续写作/审核/改写阶段可见）。"
+              disabled={isLocked}
+              rows={4}
+            />
+
+            {strategyPreviewMarkdown ? (
+              <details className="details">
+                <summary className="details__summary">
+                  预览：脚本策略内容（标题模板/节拍/模板）
+                </summary>
+                <div className="details__body">
+                  <MarkdownBlock markdown={strategyPreviewMarkdown} />
+                </div>
+              </details>
+            ) : null}
 
             <div className="hint">
               采样策略：后端固定抓取 <code className="hint__code">Top Week</code> 下最多{' '}

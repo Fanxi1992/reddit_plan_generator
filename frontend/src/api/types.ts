@@ -6,12 +6,36 @@ export type PromptsResponse = {
   prompts: Record<string, string>
 }
 
+export type StrategyBrandRules = {
+  min_mentions: number
+  max_mentions: number
+  allow_in_title: boolean
+  notes?: string | null
+}
+
+export type StrategyDef = {
+  id: string
+  title: string
+  description: string
+  pov?: string | null
+  brand: StrategyBrandRules
+  title_templates: string[]
+  beats: string[]
+  draft_template_md: string
+}
+
+export type StrategiesResponse = {
+  strategies: StrategyDef[]
+}
+
 export type RunStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'
 export type PostV1Mode = 'generate' | 'client_draft'
 
 export type RunCreateRequest = {
   target_subreddit: string
   pre_materials: string
+  strategy_id?: string
+  strategy_notes?: string | null
   post_v1_mode?: PostV1Mode
   post_v1_client_draft?: string | null
   stop_after_mod_review?: boolean
@@ -45,6 +69,8 @@ export type RunRestoreResponse = {
   target_subreddit: string
   pre_materials: string
   prompts: Record<string, string>
+  strategy_id: string
+  strategy_notes: string | null
   post_v1_mode: PostV1Mode
   post_v1_client_draft: string | null
   stop_after_mod_review: boolean

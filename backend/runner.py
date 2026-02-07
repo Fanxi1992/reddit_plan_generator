@@ -16,6 +16,7 @@ from google import genai
 from .chat_history import append_message, get_history_path
 from .paths import WORKFLOW_SCRIPTS
 from .prompts import load_default_prompts, merge_prompts, write_prompts_file
+from .strategies import validate_strategy_id
 from .storage import ensure_runs_dir, find_key_outputs, get_run_dir, read_json_if_exists, validate_run_id
 
 
@@ -146,6 +147,8 @@ class RunManager:
         pre_materials: str,
         options: dict | None,
         prompt_overrides: dict[str, str] | None,
+        strategy_id: str | None,
+        strategy_notes: str | None,
         post_v1_mode: str,
         post_v1_client_draft: str | None,
         stop_after_mod_review: bool,
@@ -183,6 +186,8 @@ class RunManager:
                     pre_materials=pre_materials,
                     options=options or {},
                     prompts=prompts,
+                    strategy_id=strategy_id,
+                    strategy_notes=strategy_notes,
                     post_v1_mode=post_v1_mode,
                     post_v1_client_draft=post_v1_client_draft,
                     stop_after_mod_review=stop_after_mod_review,
@@ -196,6 +201,8 @@ class RunManager:
                         "pre_materials": pre_materials,
                         "options": options or {},
                         "prompts": prompts,
+                        "strategy_id": strategy_id,
+                        "strategy_notes": strategy_notes,
                         "post_v1_mode": post_v1_mode,
                         "post_v1_client_draft": post_v1_client_draft,
                         "stop_after_mod_review": stop_after_mod_review,
@@ -312,6 +319,8 @@ class RunManager:
         pre_materials: str,
         options: dict,
         prompts: dict[str, str],
+        strategy_id: str | None,
+        strategy_notes: str | None,
         post_v1_mode: str,
         post_v1_client_draft: str | None,
         stop_after_mod_review: bool,
@@ -324,6 +333,13 @@ class RunManager:
         post_v1_mode_norm = (post_v1_mode or "generate").strip().lower()
         if post_v1_mode_norm not in {"generate", "client_draft"}:
             post_v1_mode_norm = "generate"
+
+        strategy_id_norm = (strategy_id or "").strip() or "free"
+        try:
+            validate_strategy_id(strategy_id_norm)
+        except Exception:
+            strategy_id_norm = "free"
+        strategy_notes_norm = (strategy_notes or "").strip() or None
 
         config_path = record.run_dir / "run_config.json"
         pre_materials_path = record.run_dir / "pre_materials.md"
@@ -348,6 +364,8 @@ class RunManager:
                 "options": options,
                 "current_date": current_date,
                 "current_datetime": current_datetime,
+                "strategy_id": strategy_id_norm,
+                "strategy_notes": strategy_notes_norm,
                 "post_v1_mode": post_v1_mode_norm,
                 "stop_after_mod_review": bool(stop_after_mod_review),
             }
@@ -376,6 +394,10 @@ class RunManager:
             env["RUN_CONFIG_FILE"] = str(config_path)
 
             with log_path.open("a", encoding="utf-8") as log_file:
+                log_file.write(f"[config] strategy_id={strategy_id_norm}\n")
+                if strategy_notes_norm:
+                    log_file.write("[config] strategy_notes provided\n")
+                log_file.flush()
                 if post_v1_mode_norm == "client_draft":
                     log_file.write(
                         f"[config] post_v1_mode=client_draft; saved {client_post_draft_filename} for stage post_v1\n"

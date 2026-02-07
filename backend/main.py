@@ -19,11 +19,14 @@ from .schemas import (
     ChatSendRequest,
     ChatSendResponse,
     PromptsResponse,
+    StrategiesResponse,
+    StrategyDef,
     RunCreateRequest,
     RunCreateResponse,
     RunRestoreResponse,
     RunStatusResponse,
  )
+from .strategies import list_strategies
 from .storage import find_key_outputs, get_run_dir, validate_run_id
 
 app = FastAPI(title="Reddit Workflow Backend", version="0.1.0")
@@ -73,6 +76,35 @@ def get_prompts():
     return PromptsResponse(prompts=load_default_prompts())
 
 
+@app.get("/api/strategies", response_model=StrategiesResponse)
+def get_strategies():
+    try:
+        catalog = list_strategies()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return StrategiesResponse(
+        strategies=[
+            StrategyDef(
+                id=st.id,
+                title=st.title,
+                description=st.description,
+                pov=st.pov,
+                brand={
+                    "min_mentions": st.brand.min_mentions,
+                    "max_mentions": st.brand.max_mentions,
+                    "allow_in_title": st.brand.allow_in_title,
+                    "notes": st.brand.notes,
+                },
+                title_templates=list(st.title_templates),
+                beats=list(st.beats),
+                draft_template_md=st.draft_template_md,
+            )
+            for st in catalog
+        ]
+    )
+
+
 @app.post("/api/runs", response_model=RunCreateResponse)
 def create_run(payload: RunCreateRequest):
     try:
@@ -82,6 +114,8 @@ def create_run(payload: RunCreateRequest):
             pre_materials=payload.pre_materials,
             options=options,
             prompt_overrides=payload.prompt_overrides,
+            strategy_id=payload.strategy_id,
+            strategy_notes=payload.strategy_notes,
             post_v1_mode=payload.post_v1_mode,
             post_v1_client_draft=payload.post_v1_client_draft,
             stop_after_mod_review=payload.stop_after_mod_review,
@@ -198,6 +232,15 @@ def restore_run(run_id: str):
 
     stop_after_mod_review = bool(config.get("stop_after_mod_review", False))
 
+    strategy_id_raw = config.get("strategy_id")
+    strategy_id = strategy_id_raw.strip() if isinstance(strategy_id_raw, str) else "free"
+    if not strategy_id:
+        strategy_id = "free"
+
+    strategy_notes_raw = config.get("strategy_notes")
+    strategy_notes = strategy_notes_raw.strip() if isinstance(strategy_notes_raw, str) else ""
+    strategy_notes = strategy_notes or None
+
     post_v1_client_draft: str | None = None
     if post_v1_mode == "client_draft":
         filename = config.get("client_post_draft_filename")
@@ -227,6 +270,8 @@ def restore_run(run_id: str):
         target_subreddit=target_subreddit,
         pre_materials=pre_materials,
         prompts={k: prompts[k] for k in PROMPT_KEYS},
+        strategy_id=strategy_id,
+        strategy_notes=strategy_notes,
         post_v1_mode=post_v1_mode,
         post_v1_client_draft=post_v1_client_draft,
         stop_after_mod_review=stop_after_mod_review,

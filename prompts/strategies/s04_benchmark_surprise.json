@@ -1,0 +1,66 @@
+{
+  "id": "s04_benchmark_surprise",
+  "title": "S04 小实验对比（Benchmark Surprise）",
+  "description": "小实验/小 benchmark：用方法论建立可信度，用条件句给结论而不是站队。",
+  "pov": "either",
+  "brand": {
+    "min_mentions": 1,
+    "max_mentions": 1,
+    "allow_in_title": false,
+    "notes": "品牌名作为测试选项之一出现 1 次；别把产品当结论。"
+  },
+  "title_templates": [
+    "I compared {{option_a}} vs {{option_b}} for {{task}} (surprising result + methodology)",
+    "Quick benchmark: {{task}} — {{option_a}} vs {{option_b}} under {{constraint}}",
+    "If you care about {{metric}}, here’s a small test I ran (not a hot take)"
+  ],
+  "beats": [
+    "声明不引战，只给方法",
+    "Setup 写清，避免“测试不公平”",
+    "结果给数字/区间 + limitations",
+    "解释反直觉原因",
+    "用条件句给选择建议",
+    "品牌名只作为选项/工具一次"
+  ],
+  "draft_template_lines": [
+    "# Post Draft (v1)",
+    "",
+    "Type: Text",
+    "Flair: None",
+    "",
+    "## Title",
+    "I compared {{option_a}} vs {{option_b}} for {{task}} (surprising result + methodology)",
+    "",
+    "## Body",
+    "Not trying to start a holy war here. I kept seeing “just use {{common_advice}}” so I ran a small test instead of arguing.",
+    "",
+    "### What I was trying to answer",
+    "For {{task}}, which option is better *under {{real_world_constraint}}*?",
+    "",
+    "### Setup (so you can poke holes)",
+    "- Scenario: {{scenario_description}}",
+    "- Workload: {{workload}}",
+    "- Environment: {{environment}}",
+    "- What I measured: {{metrics_list}}",
+    "- Runs: {{runs}}",
+    "- Controls: {{controls}}",
+    "- Limitations: {{limitations}}",
+    "",
+    "### Results (rough)",
+    "- {{option_a}}: {{result_a}} (notes: {{notes_a}})",
+    "- {{option_b}}: {{result_b}} (notes: {{notes_b}})",
+    "- Edge case that flipped the winner: {{edge_case}}",
+    "",
+    "### Why the result surprised me",
+    "I expected {{expected_reason}} but it looks like {{actual_reason}} mattered more.",
+    "",
+    "### Practical takeaway (not “X is best”)",
+    "- If your constraint is {{constraint_1}}, choose {{conditional_choice_1}}.",
+    "- If your constraint is {{constraint_2}}, choose {{conditional_choice_2}}.",
+    "",
+    "For transparency: one of the things I tested / used was {{product_name}} because {{why_it_was_in_scope}}. It’s not the “winner”, it’s just a data point.",
+    "",
+    "Question: {{single_question}}"
+  ]
+}
+

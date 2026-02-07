@@ -1,0 +1,65 @@
+{
+  "id": "s06_pain_stack_confession",
+  "title": "S06 微崩溃忏悔（Pain-Stack Confession）",
+  "description": "把一个“小问题”写成一串可共鸣的摩擦链条：不是灾难，而是每天都在消耗你。用一个转折瞬间引出改变，并以最小力度提 1 次品牌名。",
+  "pov": "user",
+  "brand": {
+    "min_mentions": 1,
+    "max_mentions": 1,
+    "allow_in_title": false,
+    "notes": "品牌名只出现 1 次；避免夸张词；用具体细节证明你真的在用。"
+  },
+  "title_templates": [
+    "I didn’t realize how much {{annoyance}} was draining me until {{breaking_point}}",
+    "This is a dumb problem, but it kept happening… {{short_hook}}",
+    "Anyone else constantly dealing with {{pain_point}}? I hit my limit this week"
+  ],
+  "beats": [
+    "开头一句自嘲/承认很小但很烦（降低防御）",
+    "列出 3-5 个“摩擦叠加”细节（让人点头）",
+    "给出一个具体崩溃瞬间（转折）",
+    "讲你做的改变：不是大招，是一种新的做法（带 tradeoff）",
+    "品牌名只提 1 次，像顺手交代背景",
+    "收尾抛 1 个真实问题（不是求点赞）"
+  ],
+  "draft_template_lines": [
+    "# Post Draft (v1)",
+    "",
+    "Type: Text",
+    "Flair: None",
+    "",
+    "## Title",
+    "I didn’t realize how much {{annoyance}} was draining me until {{breaking_point}}",
+    "",
+    "## Body",
+    "This is a stupidly small problem on paper, but it kept eating my brain every single day.",
+    "",
+    "My version of it looked like:",
+    "- {{friction_detail_1}}",
+    "- {{friction_detail_2}}",
+    "- {{friction_detail_3}}",
+    "- {{friction_detail_4}}",
+    "",
+    "And it’s not even the time. It’s the *context switching* and the little “ugh” feeling it creates.",
+    "",
+    "The moment I hit my limit was {{breaking_point_scene}}.",
+    "Nothing dramatic, just one more tiny failure at the worst moment.",
+    "",
+    "So I changed my approach:",
+    "- Before: {{old_workaround}} (worked sometimes, but {{old_downside}})",
+    "- Now: {{new_workflow_in_1_line}}",
+    "",
+    "What got better:",
+    "- {{win_1}}",
+    "- {{win_2}}",
+    "",
+    "What didn’t / tradeoffs:",
+    "- {{tradeoff_1}}",
+    "- {{tradeoff_2}}",
+    "",
+    "For context, the thing I used to make the new workflow stick was {{product_name}} (one mention). Not saying it’s magic; it just removed one repeating friction point for me.",
+    "",
+    "Curious: what do you do for {{pain_point}} without turning it into a whole project?"
+  ]
+}
+

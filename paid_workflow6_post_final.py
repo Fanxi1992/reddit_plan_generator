@@ -8,6 +8,7 @@ from pathlib import Path
 from google import genai
 
 from backend.chat_history import append_message, get_history_path, load_history
+from backend.strategies import apply_strategy_spec, build_strategy_spec
 
 
 MODEL_ID = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
@@ -62,6 +63,13 @@ def main() -> int:
     config = read_json(config_path)
     subreddit_name = normalize_subreddit(str(config.get("target_subreddit") or ""))
     current_date = (str(config.get("current_date") or "")).strip() or datetime.date.today().isoformat()
+    strategy_id_raw = config.get("strategy_id")
+    strategy_id = strategy_id_raw.strip() if isinstance(strategy_id_raw, str) else "free"
+    if not strategy_id:
+        strategy_id = "free"
+    strategy_notes_raw = config.get("strategy_notes")
+    strategy_notes = strategy_notes_raw.strip() if isinstance(strategy_notes_raw, str) else ""
+    strategy_notes = strategy_notes or None
 
     dossier_path = run_dir / "subreddit_dossier.md"
     post_path = run_dir / "post_v2.md"
@@ -77,6 +85,9 @@ def main() -> int:
     if not template:
         print("Error: native_polish_prompt is empty.")
         return 1
+
+    strategy_spec = build_strategy_spec(strategy_id=strategy_id, strategy_notes=strategy_notes, stage="post_final")
+    template = apply_strategy_spec(template, strategy_spec=strategy_spec)
 
     prompt = render_prompt(
         template,

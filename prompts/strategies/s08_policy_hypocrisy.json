@@ -1,0 +1,59 @@
+{
+  "id": "s08_policy_hypocrisy",
+  "title": "S08 规则自相矛盾（Policy vs Reality）",
+  "description": "用“制度与现实冲突”做钩子：明面上要求 A，但实际工作逼你做 B。适合垂直专业社区吐槽与求解法。品牌名只在正文交代 1 次作为被迫选用的工具/背景，不要写成广告。",
+  "pov": "either",
+  "brand": {
+    "min_mentions": 1,
+    "max_mentions": 1,
+    "allow_in_title": false,
+    "notes": "不要引战；聚焦在约束与解决方案；品牌名只出现 1 次。"
+  },
+  "title_templates": [
+    "Policy says {{policy_rule}}, reality says {{reality_rule}} — how do you deal with this?",
+    "Our rules require {{requirement}}, but forbid {{needed_thing}}. What’s the sane approach?",
+    "Is there a non-terrible way to satisfy {{constraint}} without {{bad_outcome}}?"
+  ],
+  "beats": [
+    "开头一句把矛盾写清楚（好懂）",
+    "给 2-3 个具体场景，证明不是空吐槽",
+    "描述你试过的“合规解法”为何失败",
+    "交代现在的折中方案（含代价）",
+    "品牌名只提 1 次作为背景",
+    "问社区：有没有更稳、更合规的解法？"
+  ],
+  "draft_template_lines": [
+    "# Post Draft (v1)",
+    "",
+    "Type: Text",
+    "Flair: None",
+    "",
+    "## Title",
+    "Policy says {{policy_rule}}, reality says {{reality_rule}} — how do you deal with this?",
+    "",
+    "## Body",
+    "I’m not trying to rant for the sake of ranting, but I keep hitting the same contradiction and I’m running out of “clever” workarounds.",
+    "",
+    "### The contradiction",
+    "- The official rule: {{policy_rule}}",
+    "- The practical requirement: {{practical_requirement}}",
+    "- The failure mode if we follow policy literally: {{bad_outcome}}",
+    "",
+    "### Real scenarios where it breaks",
+    "1) {{scenario_1}}",
+    "2) {{scenario_2}}",
+    "3) {{scenario_3}}",
+    "",
+    "### What I tried (and why it’s not working)",
+    "- {{attempt_1}} -> {{why_it_failed_1}}",
+    "- {{attempt_2}} -> {{why_it_failed_2}}",
+    "",
+    "### What I’m doing now (imperfect)",
+    "Right now I’m doing {{current_compromise}}. It technically satisfies {{what_it_satisfies}}, but it introduces {{new_risk_or_cost}}.",
+    "",
+    "For context, one piece of tooling in the middle of this is {{product_name}} (one mention) because {{why_it_was_chosen}}. It’s not “the answer”, it’s just what we’re using right now.",
+    "",
+    "If you’ve dealt with this kind of policy-vs-reality situation, what’s the least terrible way to handle it without getting burned later?"
+  ]
+}
+

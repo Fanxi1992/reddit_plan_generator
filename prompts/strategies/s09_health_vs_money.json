@@ -1,0 +1,67 @@
+{
+  "id": "s09_health_vs_money",
+  "title": "S09 健康 vs 省钱（Health ROI）",
+  "description": "用“我终于为健康/精力花钱了”作为故事线：先承认自己过去抠/不重视，然后写出长期隐性成本，最后给一个务实的决策理由。适合硬件/工具/服务类产品。品牌名一般 1 次即可。",
+  "pov": "user",
+  "brand": {
+    "min_mentions": 1,
+    "max_mentions": 1,
+    "allow_in_title": false,
+    "notes": "避免夸张治疗承诺；用可感知的日常改善描述；品牌名 1 次。"
+  },
+  "title_templates": [
+    "I used to refuse to spend money on {{health_related_thing}}. That was a mistake",
+    "The most boring purchase I made this year ended up being the highest ROI",
+    "AITA for spending {{money_amount}} on {{thing}} because {{pain}} was ruining my days?"
+  ],
+  "beats": [
+    "开头自嘲：以前不愿花钱（建立可信）",
+    "写隐性成本：时间/情绪/关系/效率",
+    "给一个“被迫面对”的事件",
+    "解释你怎么做出决策（约束 + 权衡）",
+    "提 1 次品牌名作为购买/使用背景",
+    "问社区：你们的健康 ROI 支出是什么？"
+  ],
+  "draft_template_lines": [
+    "# Post Draft (v1)",
+    "",
+    "Type: Text",
+    "Flair: None",
+    "",
+    "## Title",
+    "I used to refuse to spend money on {{health_related_thing}}. That was a mistake",
+    "",
+    "## Body",
+    "I’m usually the person who will spend hours optimizing a $20 decision and then complain about feeling like garbage. So… this is me eating crow.",
+    "",
+    "For {{time_period}}, I kept dealing with:",
+    "- {{symptom_or_pain_1}}",
+    "- {{symptom_or_pain_2}}",
+    "- {{symptom_or_pain_3}}",
+    "",
+    "The annoying part is it wasn’t “dramatic pain”, it was the constant low-grade stuff that made me:",
+    "- more irritable",
+    "- less focused",
+    "- weirdly exhausted",
+    "",
+    "The moment I couldn’t ignore it was {{trigger_event}}.",
+    "",
+    "### The decision logic (not a hype post)",
+    "Constraints:",
+    "- {{constraint_1}}",
+    "- {{constraint_2}}",
+    "",
+    "What I tried first (cheaper):",
+    "- {{cheap_attempt_1}} -> {{result_1}}",
+    "- {{cheap_attempt_2}} -> {{result_2}}",
+    "",
+    "What I finally did: {{the_purchase_or_change}}.",
+    "",
+    "For context: the specific thing I went with was {{product_name}} (one mention) because {{practical_reason}}.",
+    "",
+    "After {{time_after}}, the noticeable change was {{measurable_or_felt_change}}. The tradeoff is {{tradeoff}}.",
+    "",
+    "Curious what other people consider “boring but high ROI” purchases for {{domain_or_work_style}}."
+  ]
+}
+

@@ -1,0 +1,57 @@
+{
+  "id": "s07_ethical_line",
+  "title": "S07 伦理边界讨论（Where’s the Line?）",
+  "description": "把“策略”伪装成“合规/伦理求助”：OP 不是想钻空子，而是想做正确的事。用真实约束描述难处，引出你目前的做法（可提 1 次品牌名作为工具/背景），最后请社区给出边界与替代方案。",
+  "pov": "either",
+  "brand": {
+    "min_mentions": 1,
+    "max_mentions": 1,
+    "allow_in_title": false,
+    "notes": "保持“求边界”语气；不要暗示违规；品牌名只交代 1 次即可。"
+  },
+  "title_templates": [
+    "Where’s the ethical line on {{topic}} in {{domain}}?",
+    "Is it sketchy to {{action}} if {{constraint}}? I’m trying to do this right",
+    "I’m stuck between {{principle_a}} and {{principle_b}} — how do you handle this?"
+  ],
+  "beats": [
+    "明确立场：不想违规/不想当混蛋（先站位）",
+    "给背景约束：为什么会出现灰区（具体）",
+    "列出你担心的 2-3 个风险点",
+    "说你目前的折中做法（含 tradeoff）",
+    "品牌名提 1 次作为工具/背景（不当结论）",
+    "问社区：边界怎么定？更好的替代是什么？"
+  ],
+  "draft_template_lines": [
+    "# Post Draft (v1)",
+    "",
+    "Type: Text",
+    "Flair: None",
+    "",
+    "## Title",
+    "Where’s the ethical line on {{topic}} in {{domain}}?",
+    "",
+    "## Body",
+    "I’m genuinely trying to do the “not a jerk” version of this, but I keep running into edge cases where the rules aren’t obvious.",
+    "",
+    "### Context",
+    "- What I’m doing: {{what_im_trying_to_do}}",
+    "- Why: {{why_it_matters}}",
+    "- Constraint: {{constraint_that_creates_gray_area}}",
+    "",
+    "### What feels sketchy (to me)",
+    "- {{risk_or_concern_1}}",
+    "- {{risk_or_concern_2}}",
+    "- {{risk_or_concern_3}}",
+    "",
+    "### What I’m doing right now (imperfect compromise)",
+    "- I do {{safe_step}}",
+    "- I avoid {{hard_no_step}}",
+    "- I still can’t solve {{unsolved_part}} without {{tradeoff}}",
+    "",
+    "For transparency: I’m using {{product_name}} as part of this workflow (one mention), mostly because {{why_it_helps_without_crossing_line}}.",
+    "",
+    "How do you personally draw the line here? Any “clean” alternatives or heuristics you use so you don’t wake up one day realizing you’ve crossed into spam/creepy territory?"
+  ]
+}
+

@@ -1,0 +1,63 @@
+{
+  "id": "s12_unpopular_opinion_pro",
+  "title": "S12 温和反主流观点（Unpopular Opinion, Pro Edition）",
+  "description": "用“我可能要逆风了”做轻度争议钩子：反对一个常见建议，但给出更细的条件边界与方法论。适合专业垂直社区。品牌名仅 1 次作为例子/背景。",
+  "pov": "either",
+  "brand": {
+    "min_mentions": 1,
+    "max_mentions": 1,
+    "allow_in_title": false,
+    "notes": "保持温和和可验证；不要攻击人群；品牌名 1 次，别做结论。"
+  },
+  "title_templates": [
+    "Unpopular opinion: {{common_advice}} is over-recommended for {{context}}",
+    "Hot take (but hear me out): {{claim}}",
+    "I stopped following the default advice for {{task}} — here’s why"
+  ],
+  "beats": [
+    "先给免责声明：不是站队，是条件讨论",
+    "指出常见建议的适用前提（很多人不满足）",
+    "给一个反例/失败经历（细节）",
+    "提出替代框架（什么时候该用什么）",
+    "品牌名 1 次作为“我试过的一个选项”",
+    "问社区：你的边界线是什么？"
+  ],
+  "draft_template_lines": [
+    "# Post Draft (v1)",
+    "",
+    "Type: Text",
+    "Flair: None",
+    "",
+    "## Title",
+    "Unpopular opinion: {{common_advice}} is over-recommended for {{context}}",
+    "",
+    "## Body",
+    "Not trying to dunk on anyone. I just keep seeing the same default advice and I think the “works for most people” assumption breaks in a lot of real-world setups.",
+    "",
+    "### The default advice",
+    "{{common_advice}}.",
+    "",
+    "### The hidden assumptions",
+    "That advice works great if:",
+    "- {{assumption_1}}",
+    "- {{assumption_2}}",
+    "- {{assumption_3}}",
+    "",
+    "But if you’re in a situation like mine:",
+    "- {{my_constraint_1}}",
+    "- {{my_constraint_2}}",
+    "",
+    "…you get {{failure_mode}} instead of the promised benefit.",
+    "",
+    "### What worked better for me (with tradeoffs)",
+    "I switched to {{alternative_approach}}.",
+    "Tradeoffs:",
+    "- {{tradeoff_1}}",
+    "- {{tradeoff_2}}",
+    "",
+    "For context, I also tried {{product_name}} (one mention) in the process because {{why_it_was_relevant}}.",
+    "",
+    "Curious where other people draw the line: when does the default advice stop being good advice for {{context}}?"
+  ]
+}
+
