@@ -1239,13 +1239,9 @@ export default function App() {
                   </div>
                 ) : null}
 
-                {outputLoading === selectedOutput ? (
-                  <div className="empty">正在加载预览…</div>
-                ) : outputMarkdown[selectedOutput] ? (
+                {outputMarkdown[selectedOutput] ? (
                   <MarkdownPreview markdown={outputMarkdown[selectedOutput] ?? ''} />
-                ) : (
-                  <div className="empty">未加载预览（可点击上方 Tab 触发加载）。</div>
-                )}
+                ) : null}
               </div>
             )}
           </div>
