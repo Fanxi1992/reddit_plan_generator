@@ -15,7 +15,6 @@ import type {
 } from './api/types'
 import TextAreaField from './components/TextAreaField'
 import InputField from './components/InputField'
-import SelectField from './components/SelectField'
 import StatusPill from './components/StatusPill'
 import MarkdownPreview from './components/MarkdownPreview'
 import MarkdownBlock from './components/MarkdownBlock'
@@ -89,6 +88,34 @@ function humanPhase(phase: string | null | undefined) {
   if (phase === 'paid_workflow6_post_final.py') return '阶段 6（最终 Post）'
   if (phase === 'paid_workflow7_engagement_kit.py') return '阶段 7（互动文案包）'
   return phase
+}
+
+function toStrategyBadge(id: string) {
+  const m = /^s(\d{2})/i.exec(id)
+  if (m) return `S${m[1]}`
+  if (id.toLowerCase() === 'free') return 'FREE'
+  return id.toUpperCase()
+}
+
+function stripStrategyTitle(title: string, badge: string) {
+  if (!title) return title
+  if (badge === 'FREE') return title.replace(/^Free\s+/i, '')
+  const re = new RegExp(`^${badge}\\s+`, 'i')
+  return title.replace(re, '')
+}
+
+function toPovLabel(pov: string | null | undefined) {
+  const v = (pov ?? '').trim().toLowerCase()
+  if (!v || v === 'either' || v === 'any') return '不限'
+  if (v === 'user') return '用户'
+  if (v === 'founder') return '创始人'
+  return pov ?? '不限'
+}
+
+function formatMentions(min: number | undefined, max: number | undefined) {
+  const a = typeof min === 'number' ? min : 1
+  const b = typeof max === 'number' ? max : a
+  return a === b ? `${a}x` : `${a}-${b}x`
 }
 
 export default function App() {
@@ -207,16 +234,38 @@ export default function App() {
     return diffPrompts(defaultPrompts, draftPrompts)
   }, [defaultPrompts, draftPrompts])
 
-  const strategyOptions = useMemo(() => {
-    if (strategyCatalog.length) {
-      return strategyCatalog.map((st) => ({ value: st.id, label: st.title }))
+  type StrategyCard = { st: StrategyDef; disabled?: boolean }
+  const strategyCards = useMemo<StrategyCard[]>(() => {
+    if (strategyCatalog.length) return strategyCatalog.map((st) => ({ st }))
+
+    const fallbackFree: StrategyDef = {
+      id: 'free',
+      title: 'Free 自由模式（不限定脚本）',
+      description:
+        '不强制固定叙事脚本；仍要求标题不出现品牌名，正文至少提及一次品牌名，并保持 subreddit 原生风格。',
+      pov: 'either',
+      brand: { min_mentions: 1, max_mentions: 1, allow_in_title: false, notes: null },
+      title_templates: [],
+      beats: [],
+      draft_template_md: '',
     }
-    const base = [{ value: 'free', label: 'Free 自由模式（不限定脚本）' }]
-    if (strategyId && strategyId !== 'free') {
-      return [
-        { value: strategyId, label: `(未知策略: ${strategyId}，将按 free 处理)`, disabled: true },
-        ...base,
-      ]
+
+    const base: StrategyCard[] = [{ st: fallbackFree }]
+    const normalized = (strategyId ?? '').trim()
+    if (normalized && normalized !== 'free') {
+      base.unshift({
+        st: {
+          id: normalized,
+          title: `(未知策略: ${normalized})`,
+          description: '后端未返回该策略，将按 free 处理。',
+          pov: null,
+          brand: { min_mentions: 1, max_mentions: 1, allow_in_title: false },
+          title_templates: [],
+          beats: [],
+          draft_template_md: '',
+        },
+        disabled: true,
+      })
     }
     return base
   }, [strategyCatalog, strategyId])
@@ -800,16 +849,60 @@ export default function App() {
                 <div className="alert__title">脚本策略加载失败</div>
                 <div className="alert__body">{strategiesError}</div>
               </div>
-            ) : null}
+              ) : null}
 
-            <SelectField
-              label="脚本策略（Strategy Selector）"
-              value={strategyId}
-              onChange={setStrategyId}
-              options={strategyOptions}
-              helper="选择主贴写作脚本；后端会在 Post v1 / Mod 审核 / Post v2 / Post Final 阶段持续注入该策略，避免后续修改跑偏。"
-              disabled={isLocked || loadingStrategies}
-            />
+            <div className="field">
+              <div className="field__header">
+                <div className="field__label">脚本策略（Strategy Selector）</div>
+              </div>
+              <div className="field__helper">
+                选择主贴写作脚本；后端会在 Post v1 / Mod 审核 / Post v2 / Post Final 阶段持续注入该策略，避免后续修改跑偏。
+              </div>
+              <div className="strategyGrid" role="radiogroup" aria-label="脚本策略（Strategy Selector）">
+                {strategyCards.map(({ st, disabled }) => {
+                  const badge = toStrategyBadge(st.id)
+                  const title = stripStrategyTitle(st.title, badge)
+                  const brand = st.brand
+                  const mentions = formatMentions(brand?.min_mentions, brand?.max_mentions)
+                  const pov = toPovLabel(st.pov)
+                  const beatsCount = (st.beats ?? []).length
+                  const titleCount = (st.title_templates ?? []).length
+                  const isSelected = strategyId === st.id
+                  const fullTitle = st.title?.trim() ?? ''
+                  const fullDesc = (st.description ?? '').trim()
+
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      className={`strategyCard ${isSelected ? 'strategyCard--selected' : ''}`}
+                      onClick={() => setStrategyId(st.id)}
+                      disabled={disabled || isLocked || loadingStrategies}
+                      role="radio"
+                      aria-checked={isSelected}
+                      title={[fullTitle, fullDesc].filter(Boolean).join('\n\n')}
+                    >
+                      <div className="strategyCard__top">
+                        <span className="strategyCard__badge">{badge}</span>
+                        <span className="strategyCard__title">{title}</span>
+                      </div>
+                      <div className="strategyCard__desc">
+                        {(st.description ?? '').trim() ? st.description : '（无说明）'}
+                      </div>
+                      <div className="strategyCard__meta">
+                        <span className="tag tag--sm">视角:{pov}</span>
+                        <span className="tag tag--sm">品牌:{mentions}</span>
+                        <span className={`tag tag--sm ${brand?.allow_in_title ? 'tag--warn' : ''}`}>
+                          标题:{brand?.allow_in_title ? '可含品牌' : '禁品牌'}
+                        </span>
+                        <span className="tag tag--sm">标题模版:{titleCount}</span>
+                        <span className="tag tag--sm">节拍:{beatsCount}</span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
             <TextAreaField
               label="策略备注（可选）"
