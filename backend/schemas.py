@@ -8,6 +8,22 @@ from pydantic import BaseModel, Field, model_validator
 class PromptsResponse(BaseModel):
     prompts: dict[str, str]
 
+
+class EffectivePromptsRequest(BaseModel):
+    prompt_overrides: dict[str, str] = Field(
+        default_factory=dict,
+        description="Override any of the default prompts by key (same semantics as RunCreateRequest.prompt_overrides).",
+    )
+    strategy_id: str = Field(
+        default="free",
+        max_length=64,
+        description="Selected script strategy id from /api/strategies (default: free).",
+    )
+    strategy_notes: str | None = Field(
+        default=None,
+        description="Optional operator notes to tailor the selected strategy (will be injected as Custom Notes).",
+    )
+
 TopTimeFilter = Literal["day", "week", "month", "year", "all"]
 PostV1Mode = Literal["generate", "client_draft"]
 

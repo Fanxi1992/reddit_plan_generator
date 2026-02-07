@@ -5,6 +5,7 @@ import type {
   ChatHistoryResponse,
   ChatMessage,
   ChatSendResponse,
+  EffectivePromptsRequest,
   HealthResponse,
   PromptsResponse,
   StrategiesResponse,
@@ -126,6 +127,10 @@ export default function App() {
   const [strategiesError, setStrategiesError] = useState<string | null>(null)
   const [strategyCatalog, setStrategyCatalog] = useState<StrategyDef[]>([])
   const [showAllStrategies, setShowAllStrategies] = useState(false)
+  const [effectivePrompts, setEffectivePrompts] = useState<Record<string, string> | null>(null)
+  const [effectiveLoading, setEffectiveLoading] = useState(false)
+  const [effectiveError, setEffectiveError] = useState<string | null>(null)
+  const effectiveReqRef = useRef(0)
 
   const [defaultPrompts, setDefaultPrompts] = useState<Record<string, string> | null>(
     null,
@@ -234,6 +239,46 @@ export default function App() {
     if (!defaultPrompts) return {}
     return diffPrompts(defaultPrompts, draftPrompts)
   }, [defaultPrompts, draftPrompts])
+
+  useEffect(() => {
+    if (!defaultPrompts) return
+
+    const requestId = ++effectiveReqRef.current
+    const payload: EffectivePromptsRequest = {
+      prompt_overrides: promptOverrides,
+      strategy_id: strategyId,
+      strategy_notes: strategyNotes.trim() ? strategyNotes.trim() : null,
+    }
+
+    const timer = window.setTimeout(() => {
+      setEffectiveLoading(true)
+      setEffectiveError(null)
+
+      void (async () => {
+        try {
+          const data = await fetchJson<PromptsResponse>('/api/prompts/effective', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            timeoutMs: 15000,
+          })
+          if (effectiveReqRef.current !== requestId) return
+          setEffectivePrompts(data.prompts ?? {})
+        } catch (e) {
+          if (effectiveReqRef.current !== requestId) return
+          const msg =
+            e instanceof ApiError
+              ? e.message
+              : '无法生成 Effective Prompt 预览，请检查后端/网络'
+          setEffectiveError(msg)
+          setEffectivePrompts(null)
+        } finally {
+          if (effectiveReqRef.current === requestId) setEffectiveLoading(false)
+        }
+      })()
+    }, 250)
+
+    return () => window.clearTimeout(timer)
+  }, [defaultPrompts, promptOverrides, strategyId, strategyNotes])
 
   type StrategyCard = { st: StrategyDef; disabled?: boolean }
   const strategyCards = useMemo<StrategyCard[]>(() => {
@@ -1108,6 +1153,43 @@ export default function App() {
                           </>
                         }
                       />
+
+                      <details className="details">
+                        <summary className="details__summary">
+                          Effective 预览（已注入策略；中间产物占位符不展开）
+                        </summary>
+                        <div className="details__body">
+                          {effectiveError ? (
+                            <div className="alert alert--bad">
+                              <div className="alert__title">预览生成失败</div>
+                              <div className="alert__body">{effectiveError}</div>
+                            </div>
+                          ) : null}
+
+                          <div className="promptPreviewActions">
+                            <button
+                              className="btn btn--ghost btn--sm"
+                              type="button"
+                              disabled={!effectivePrompts?.[meta.key]}
+                              onClick={() =>
+                                navigator.clipboard.writeText(effectivePrompts?.[meta.key] ?? '')
+                              }
+                            >
+                              复制 Effective
+                            </button>
+                            {effectiveLoading ? <span className="muted">预览更新中…</span> : null}
+                          </div>
+
+                          <div className="muted">
+                            提示：在模板中加入 <code className="hint__code">{'{{strategy_spec}}'}</code>{' '}
+                            可控制策略块插入位置；未加入则会追加到末尾。
+                          </div>
+
+                          {effectivePrompts?.[meta.key] ? (
+                            <pre className="promptPreview">{effectivePrompts?.[meta.key] ?? ''}</pre>
+                          ) : null}
+                        </div>
+                      </details>
                     </div>
                   </details>
                 )

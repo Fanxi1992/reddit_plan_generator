@@ -197,7 +197,7 @@ def build_strategy_spec(
         beats_block = _bullet_lines(st.beats)
         body = common
         if title_block:
-            body += f"\n## Title Patterns (choose 1)\n{title_block}\n"
+            body += f"\n## Title Patterns (仅作为风格参考，实际标题根据具体情况拟定)\n{title_block}\n"
         if beats_block:
             body += f"\n## Beat Sheet (follow this pacing)\n{beats_block}\n"
         if st.draft_template_md:

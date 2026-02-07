@@ -12,12 +12,13 @@ from fastapi.responses import FileResponse
 from google import genai
 
 from .chat_history import HISTORY_FILENAME, append_message, get_history_path, load_history, load_history_messages
-from .prompts import PROMPT_KEYS, load_default_prompts, load_prompts_file
+from .prompts import PROMPT_KEYS, load_default_prompts, load_prompts_file, merge_prompts
 from .runner import RunAlreadyRunningError, RunManager, RunNotFoundError, RunStatus
 from .schemas import (
     ChatHistoryResponse,
     ChatSendRequest,
     ChatSendResponse,
+    EffectivePromptsRequest,
     PromptsResponse,
     StrategiesResponse,
     StrategyDef,
@@ -26,7 +27,7 @@ from .schemas import (
     RunRestoreResponse,
     RunStatusResponse,
  )
-from .strategies import list_strategies
+from .strategies import Stage, apply_strategy_spec, build_strategy_spec, list_strategies, validate_strategy_id
 from .storage import find_key_outputs, get_run_dir, validate_run_id
 
 app = FastAPI(title="Reddit Workflow Backend", version="0.1.0")
@@ -74,6 +75,38 @@ def health():
 @app.get("/api/prompts", response_model=PromptsResponse)
 def get_prompts():
     return PromptsResponse(prompts=load_default_prompts())
+
+
+@app.post("/api/prompts/effective", response_model=PromptsResponse)
+def get_effective_prompts(payload: EffectivePromptsRequest):
+    """
+    Return the *effective* prompt templates that will be used at runtime:
+    - Merge default prompts with the provided prompt_overrides.
+    - Inject the selected strategy_spec into the relevant stage prompts.
+    - Keep all other placeholders (e.g. {{product_brief}}/{{subreddit_dossier}}) intact.
+    """
+    try:
+        prompts = merge_prompts(load_default_prompts(), payload.prompt_overrides)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    strategy_id = (payload.strategy_id or "").strip() or "free"
+    try:
+        validate_strategy_id(strategy_id)
+    except Exception:
+        strategy_id = "free"
+    strategy_notes = (payload.strategy_notes or "").strip() or None
+
+    def inject(key: str, *, stage: Stage) -> None:
+        spec = build_strategy_spec(strategy_id=strategy_id, strategy_notes=strategy_notes, stage=stage)
+        prompts[key] = apply_strategy_spec(prompts.get(key, ""), strategy_spec=spec)
+
+    inject("post_draft_prompt", stage="post_v1")
+    inject("mod_review_prompt", stage="mod_review")
+    inject("revise_prompt", stage="post_v2")
+    inject("native_polish_prompt", stage="post_final")
+
+    return PromptsResponse(prompts={k: prompts.get(k, "") for k in PROMPT_KEYS})
 
 
 @app.get("/api/strategies", response_model=StrategiesResponse)

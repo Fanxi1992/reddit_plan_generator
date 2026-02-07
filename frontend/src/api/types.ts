@@ -6,6 +6,12 @@ export type PromptsResponse = {
   prompts: Record<string, string>
 }
 
+export type EffectivePromptsRequest = {
+  prompt_overrides: Record<string, string>
+  strategy_id: string
+  strategy_notes: string | null
+}
+
 export type StrategyBrandRules = {
   min_mentions: number
   max_mentions: number
