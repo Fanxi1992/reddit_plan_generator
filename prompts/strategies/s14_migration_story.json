@@ -1,6 +1,6 @@
 {
   "id": "s14_migration_story",
-  "title": "S14 迁移故事（Migration Story）",
+  "title": "S14 迁移故事",
   "description": "“从 A 迁到 B”天然带细节与可信度：动机、步骤、踩坑、反直觉点、回滚策略。适合工具/平台/服务类产品。品牌名只出现 1 次作为迁移目的地/候选背景。",
   "pov": "either",
   "brand": {

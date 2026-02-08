@@ -1,6 +1,6 @@
 {
   "id": "free",
-  "title": "Free 自由模式（不限定脚本）",
+  "title": "Free 自由模式",
   "description": "不强制固定叙事脚本；仍要求标题不出现品牌名，正文至少提及一次品牌名，并保持 subreddit 原生风格。",
   "pov": "either",
   "brand": {

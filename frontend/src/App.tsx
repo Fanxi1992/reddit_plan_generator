@@ -955,7 +955,6 @@ export default function App() {
                           标题:{brand?.allow_in_title ? '可含品牌' : '禁品牌'}
                         </span>
                         <span className="tag tag--sm">标题模版:{titleCount}</span>
-                        <span className="tag tag--sm">节拍:{beatsCount}</span>
                       </div>
                     </button>
                   )

@@ -1,6 +1,6 @@
 {
   "id": "s11_trust_privacy",
-  "title": "S11 信任与隐私权衡（Trust / Privacy Tradeoff）",
+  "title": "S11 信任与隐私权衡",
   "description": "用“我到底该信谁？”作为真实焦虑：自托管 vs SaaS、便利 vs 风险、权限 vs 审计。适合安全/隐私/金融/企业工具类。品牌名只出现 1 次作为候选/现状背景。",
   "pov": "either",
   "brand": {

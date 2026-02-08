@@ -171,7 +171,7 @@ def build_strategy_spec(
     notes = (strategy_notes or "").strip()
 
     brand_rules = (
-        f"- Brand mentions: {st.brand.min_mentions}–{st.brand.max_mentions} times in **Body**\n"
+        f"- Brand mentions: {st.brand.min_mentions}-{st.brand.max_mentions} times in **Body**\n"
         f"- Brand in title: {'allowed' if st.brand.allow_in_title else 'not allowed'}\n"
     )
     if st.brand.notes:
@@ -185,6 +185,11 @@ def build_strategy_spec(
 
     common = (
         f"{header}\n\n"
+        "## How To Use This Strategy (Important)\n"
+        "- This strategy is a **creative angle + constraints**, not a fill-in-the-blank template.\n"
+        "- Use the run context to invent a fresh, subreddit-native story. Do **not** copy any example wording verbatim.\n"
+        "- Do **not** reproduce any headings/bullets from this spec in the final post. Output a natural Reddit post only.\n"
+        "- If a title/body pattern conflicts with the target sub's tone or rules, adapt it while preserving the angle.\n\n"
         "## Hard Rules\n"
         f"{brand_rules}"
     )
@@ -197,11 +202,27 @@ def build_strategy_spec(
         beats_block = _bullet_lines(st.beats)
         body = common
         if title_block:
-            body += f"\n## Title Patterns (仅作为风格参考，实际标题根据具体情况拟定)\n{title_block}\n"
+            body += (
+                "\n## Title Patterns (Style References Only)\n"
+                "- Do **not** use these as fixed formulas.\n"
+                "- Derive a new title that fits the specific sub and story.\n"
+                f"\n{title_block}\n"
+            )
         if beats_block:
-            body += f"\n## Beat Sheet (follow this pacing)\n{beats_block}\n"
+            body += (
+                "\n## Beat Sheet (Pacing Guide)\n"
+                "- Treat these as flexible beats. You may reorder/merge/drop beats to fit the story.\n"
+                "- Do **not** output this beat list. Use it only as an internal planning guide.\n"
+                f"\n{beats_block}\n"
+            )
         if st.draft_template_md:
-            body += "\n## Few-shot Draft Template (fill using the run context)\n\n" + st.draft_template_md.strip() + "\n"
+            body += (
+                "\n## Few-shot Draft Scaffold (Inspiration Only)\n"
+                "- This is a reference scaffold to clarify the angle.\n"
+                "- Do **not** preserve its exact structure. Do **not** copy sentences.\n\n"
+                + st.draft_template_md.strip()
+                + "\n"
+            )
         return body.strip()
 
     if stage == "mod_review":
@@ -209,7 +230,7 @@ def build_strategy_spec(
             common
             + "\n## Preservation Guidance (this stage)\n"
             "- Evaluate rule compliance first.\n"
-            "- When suggesting changes, prefer minimal edits that preserve the selected script’s core premise and pacing.\n"
+            "- When suggesting changes, prefer minimal edits that preserve the selected script's core premise and pacing.\n"
             "- If something in the script is incompatible with subreddit rules, call it out explicitly and propose a safer alternative that keeps the angle.\n"
         ).strip()
 
@@ -218,7 +239,7 @@ def build_strategy_spec(
             common
             + "\n## Preservation Guidance (this stage)\n"
             "- Revise to satisfy mod review **without** flattening the post into a generic product description.\n"
-            "- Preserve the selected script’s hook, premise, and overall beat sequence.\n"
+            "- Preserve the selected script's hook, premise, and overall beat sequence.\n"
             "- Keep brand mention subtle; if you must move it, keep it in Body and keep it to the minimum.\n"
         ).strip()
 
