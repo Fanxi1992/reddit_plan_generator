@@ -64,19 +64,31 @@ def load_default_prompts(path: Path = DEFAULT_PROMPTS_PATH) -> dict[str, str]:
     return {k: prompts[k] for k in PROMPT_KEYS}
 
 
-def validate_prompts(prompts: dict[str, str]) -> None:
+def validate_prompts(prompts: dict[str, str], *, skip_keys: set[str] | None = None) -> None:
+    skip = skip_keys or set()
+
     for key in PROMPT_KEYS:
+        if key in skip:
+            continue
         value = prompts.get(key)
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"Prompt '{key}' must be a non-empty string.")
 
     for key, required_tokens in REQUIRED_PLACEHOLDERS.items():
+        if key in skip:
+            continue
+        value = prompts.get(key) or ""
         for token in required_tokens:
-            if token not in prompts[key]:
+            if token not in value:
                 raise ValueError(f"Prompt '{key}' must contain placeholder {token}.")
 
 
-def merge_prompts(default_prompts: dict[str, str], overrides: dict[str, str] | None) -> dict[str, str]:
+def merge_prompts(
+    default_prompts: dict[str, str],
+    overrides: dict[str, str] | None,
+    *,
+    skip_keys: set[str] | None = None,
+) -> dict[str, str]:
     merged = dict(default_prompts)
     if overrides:
         for key, value in overrides.items():
@@ -85,7 +97,7 @@ def merge_prompts(default_prompts: dict[str, str], overrides: dict[str, str] | N
             if not isinstance(value, str):
                 raise ValueError(f"Prompt override '{key}' must be a string.")
             merged[key] = value
-    validate_prompts(merged)
+    validate_prompts(merged, skip_keys=skip_keys)
     return merged
 
 

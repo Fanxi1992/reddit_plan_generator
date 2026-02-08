@@ -85,8 +85,13 @@ def get_effective_prompts(payload: EffectivePromptsRequest):
     - Inject the selected strategy_spec into the relevant stage prompts.
     - Keep all other placeholders (e.g. {{product_brief}}/{{subreddit_dossier}}) intact.
     """
+    brief_mode = (payload.brief_mode or "extract").strip().lower()
+    if brief_mode not in {"extract", "raw"}:
+        brief_mode = "extract"
+
+    skip_keys = {"brief_prompt"} if brief_mode == "raw" else None
     try:
-        prompts = merge_prompts(load_default_prompts(), payload.prompt_overrides)
+        prompts = merge_prompts(load_default_prompts(), payload.prompt_overrides, skip_keys=skip_keys)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -145,6 +150,7 @@ def create_run(payload: RunCreateRequest):
         record = RUNS.start_run(
             target_subreddit=payload.target_subreddit,
             pre_materials=payload.pre_materials,
+            brief_mode=payload.brief_mode,
             options=options,
             prompt_overrides=payload.prompt_overrides,
             strategy_id=payload.strategy_id,
@@ -263,6 +269,11 @@ def restore_run(run_id: str):
     if post_v1_mode not in {"generate", "client_draft"}:
         post_v1_mode = "generate"
 
+    brief_mode_raw = config.get("brief_mode")
+    brief_mode = brief_mode_raw.strip().lower() if isinstance(brief_mode_raw, str) else "extract"
+    if brief_mode not in {"extract", "raw"}:
+        brief_mode = "extract"
+
     stop_after_mod_review = bool(config.get("stop_after_mod_review", False))
 
     strategy_id_raw = config.get("strategy_id")
@@ -302,6 +313,7 @@ def restore_run(run_id: str):
         run_id=run_id,
         target_subreddit=target_subreddit,
         pre_materials=pre_materials,
+        brief_mode=brief_mode,
         prompts={k: prompts[k] for k in PROMPT_KEYS},
         strategy_id=strategy_id,
         strategy_notes=strategy_notes,

@@ -10,6 +10,7 @@ export type EffectivePromptsRequest = {
   prompt_overrides: Record<string, string>
   strategy_id: string
   strategy_notes: string | null
+  brief_mode: BriefMode
 }
 
 export type StrategyBrandRules = {
@@ -36,10 +37,12 @@ export type StrategiesResponse = {
 
 export type RunStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'
 export type PostV1Mode = 'generate' | 'client_draft'
+export type BriefMode = 'extract' | 'raw'
 
 export type RunCreateRequest = {
   target_subreddit: string
   pre_materials: string
+  brief_mode?: BriefMode
   strategy_id?: string
   strategy_notes?: string | null
   post_v1_mode?: PostV1Mode
@@ -74,6 +77,7 @@ export type RunRestoreResponse = {
   run_id: string
   target_subreddit: string
   pre_materials: string
+  brief_mode: BriefMode
   prompts: Record<string, string>
   strategy_id: string
   strategy_notes: string | null

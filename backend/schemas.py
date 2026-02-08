@@ -4,6 +4,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+TopTimeFilter = Literal["day", "week", "month", "year", "all"]
+PostV1Mode = Literal["generate", "client_draft"]
+BriefMode = Literal["extract", "raw"]
+
 
 class PromptsResponse(BaseModel):
     prompts: dict[str, str]
@@ -23,9 +27,10 @@ class EffectivePromptsRequest(BaseModel):
         default=None,
         description="Optional operator notes to tailor the selected strategy (will be injected as Custom Notes).",
     )
-
-TopTimeFilter = Literal["day", "week", "month", "year", "all"]
-PostV1Mode = Literal["generate", "client_draft"]
+    brief_mode: BriefMode = Field(
+        default="extract",
+        description="How product_brief.md will be produced at runtime (affects whether brief_prompt is required).",
+    )
 
 
 class StrategyBrandRules(BaseModel):
@@ -113,6 +118,10 @@ class RunCreateRequest(BaseModel):
         min_length=1,
         description="Upfront materials (notes/docs). Raw text is persisted to pre_materials.md; only the extracted product_brief.md is used as authoritative chat context.",
     )
+    brief_mode: BriefMode = Field(
+        default="extract",
+        description="How to create product_brief.md. 'extract' summarizes via brief_prompt; 'raw' uses pre_materials verbatim.",
+    )
     options: RunOptions = Field(
         default_factory=RunOptions,
         description="Sampling options for subreddit corpus scraping.",
@@ -183,6 +192,10 @@ class RunRestoreResponse(BaseModel):
     run_id: str
     target_subreddit: str
     pre_materials: str
+    brief_mode: BriefMode = Field(
+        default="extract",
+        description="How product_brief.md was produced for this run.",
+    )
     prompts: dict[str, str]
     strategy_id: str = Field(
         default="free",

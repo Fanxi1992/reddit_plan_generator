@@ -159,6 +159,7 @@ class RunManager:
         *,
         target_subreddit: str,
         pre_materials: str,
+        brief_mode: str,
         options: dict | None,
         prompt_overrides: dict[str, str] | None,
         strategy_id: str | None,
@@ -173,6 +174,10 @@ class RunManager:
 
         base_run_id = run_id or self._build_default_run_id(target_subreddit=target_subreddit)
         validate_run_id(base_run_id)
+
+        brief_mode_norm = (brief_mode or "extract").strip().lower()
+        if brief_mode_norm not in {"extract", "raw"}:
+            brief_mode_norm = "extract"
 
         if not self._execution_lock.acquire(blocking=False):
             raise RunAlreadyRunningError("A run is already in progress.")
@@ -216,13 +221,15 @@ class RunManager:
                 self._controls[final_run_id] = RunControl()
 
             default_prompts = load_default_prompts()
-            prompts = merge_prompts(default_prompts, prompt_overrides)
+            skip_keys = {"brief_prompt"} if brief_mode_norm == "raw" else None
+            prompts = merge_prompts(default_prompts, prompt_overrides, skip_keys=skip_keys)
 
             if wait:
                 self._run(
                     record,
                     target_subreddit=target_subreddit,
                     pre_materials=pre_materials,
+                    brief_mode=brief_mode_norm,
                     options=options or {},
                     prompts=prompts,
                     strategy_id=strategy_id,
@@ -238,6 +245,7 @@ class RunManager:
                         "record": record,
                         "target_subreddit": target_subreddit,
                         "pre_materials": pre_materials,
+                        "brief_mode": brief_mode_norm,
                         "options": options or {},
                         "prompts": prompts,
                         "strategy_id": strategy_id,
@@ -356,6 +364,7 @@ class RunManager:
         *,
         target_subreddit: str,
         pre_materials: str,
+        brief_mode: str,
         options: dict,
         prompts: dict[str, str],
         strategy_id: str | None,
@@ -380,6 +389,10 @@ class RunManager:
             strategy_id_norm = "free"
         strategy_notes_norm = (strategy_notes or "").strip() or None
 
+        brief_mode_norm = (brief_mode or "extract").strip().lower()
+        if brief_mode_norm not in {"extract", "raw"}:
+            brief_mode_norm = "extract"
+
         config_path = record.run_dir / "run_config.json"
         pre_materials_path = record.run_dir / "pre_materials.md"
         brief_md_path = record.run_dir / "product_brief.md"
@@ -403,6 +416,7 @@ class RunManager:
                 "options": options,
                 "current_date": current_date,
                 "current_datetime": current_datetime,
+                "brief_mode": brief_mode_norm,
                 "strategy_id": strategy_id_norm,
                 "strategy_notes": strategy_notes_norm,
                 "post_v1_mode": post_v1_mode_norm,
@@ -442,6 +456,8 @@ class RunManager:
                         f"[config] post_v1_mode=client_draft; saved {client_post_draft_filename} for stage post_v1\n"
                     )
                     log_file.flush()
+                log_file.write(f"[config] brief_mode={brief_mode_norm}\n")
+                log_file.flush()
                 if stop_after_mod_review:
                     log_file.write(
                         "[config] stop_after_mod_review=true; workflow will stop after paid_workflow4_mod_review.py\n"
@@ -465,31 +481,51 @@ class RunManager:
                     raw_pre_materials += "\n"
                 pre_materials_path.write_text(raw_pre_materials, encoding="utf-8")
 
-                brief_text = generate_product_brief(prompts["brief_prompt"], pre_materials=pre_materials)
-                brief_json = extract_json_object(brief_text)
-                brief_md = strip_json_code_blocks(brief_text).strip()
-                if not brief_md:
-                    brief_md = (brief_text or "").strip()
-                if brief_md:
-                    brief_md_path.write_text(brief_md + "\n", encoding="utf-8")
-                if brief_json is not None:
-                    brief_json_path.write_text(json_dumps_pretty(brief_json) + "\n", encoding="utf-8")
+                if brief_mode_norm == "raw":
+                    brief_md = (pre_materials or "").strip()
+                    if brief_md:
+                        brief_md_path.write_text(brief_md + "\n", encoding="utf-8")
 
-                # Seed chat history with the extracted brief so subsequent stages and /chat share context.
-                history_path = get_history_path(record.run_dir)
-                append_message(
-                    history_path,
-                    role="user",
-                    text=(
-                        "Context note: upfront pre-materials were provided out-of-band and are not included in chat context. "
-                        "Use ONLY the following extracted Product Brief as authoritative context for this run.\n\n"
-                        f"Target Subreddit: r/{target_subreddit.strip()}\n\n"
-                        f"{brief_md}"
-                    ),
-                )
+                    history_path = get_history_path(record.run_dir)
+                    append_message(
+                        history_path,
+                        role="user",
+                        text=(
+                            "Context note: upfront pre-materials are provided verbatim below as the Product Brief for this run (no summarization). "
+                            "Treat it as the ONLY authoritative context for this run.\n\n"
+                            f"Target Subreddit: r/{target_subreddit.strip()}\n\n"
+                            f"{brief_md}"
+                        ),
+                    )
 
-                log_file.write("[stage0_brief] Saved product_brief.md/product_brief.json and seeded chat history\n")
-                log_file.flush()
+                    log_file.write("[stage0_brief] Saved product_brief.md (raw) and seeded chat history\n")
+                    log_file.flush()
+                else:
+                    brief_text = generate_product_brief(prompts["brief_prompt"], pre_materials=pre_materials)
+                    brief_json = extract_json_object(brief_text)
+                    brief_md = strip_json_code_blocks(brief_text).strip()
+                    if not brief_md:
+                        brief_md = (brief_text or "").strip()
+                    if brief_md:
+                        brief_md_path.write_text(brief_md + "\n", encoding="utf-8")
+                    if brief_json is not None:
+                        brief_json_path.write_text(json_dumps_pretty(brief_json) + "\n", encoding="utf-8")
+
+                    # Seed chat history with the extracted brief so subsequent stages and /chat share context.
+                    history_path = get_history_path(record.run_dir)
+                    append_message(
+                        history_path,
+                        role="user",
+                        text=(
+                            "Context note: upfront pre-materials were provided out-of-band and are not included in chat context. "
+                            "Use ONLY the following extracted Product Brief as authoritative context for this run.\n\n"
+                            f"Target Subreddit: r/{target_subreddit.strip()}\n\n"
+                            f"{brief_md}"
+                        ),
+                    )
+
+                    log_file.write("[stage0_brief] Saved product_brief.md/product_brief.json and seeded chat history\n")
+                    log_file.flush()
 
                 scripts_to_run = WORKFLOW_SCRIPTS
                 if stop_after_mod_review:

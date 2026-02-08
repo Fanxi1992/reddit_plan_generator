@@ -16,6 +16,7 @@ import type {
 } from './api/types'
 import TextAreaField from './components/TextAreaField'
 import InputField from './components/InputField'
+import SelectField from './components/SelectField'
 import StatusPill from './components/StatusPill'
 import MarkdownPreview from './components/MarkdownPreview'
 import MarkdownBlock from './components/MarkdownBlock'
@@ -31,6 +32,7 @@ import { useSessionStorageState } from './hooks/useSessionStorageState'
 
 type BackendStatus = 'online' | 'offline' | 'unknown'
 type PostV1Mode = 'generate' | 'client_draft'
+type BriefMode = 'extract' | 'raw'
 type OutputKind =
   | 'post_final'
   | 'engagement_kit'
@@ -172,6 +174,10 @@ export default function App() {
     '',
   )
   const [preMaterials, setPreMaterials] = useLocalStorageState(k('draftPreMaterials'), '')
+  const [briefMode, setBriefMode] = useLocalStorageState<BriefMode>(
+    k('draftBriefMode'),
+    'extract',
+  )
   const [strategyId, setStrategyId] = useLocalStorageState<string>(k('draftStrategyId'), 'free')
   const [strategyNotes, setStrategyNotes] = useLocalStorageState(k('draftStrategyNotes'), '')
   const [postV1Mode, setPostV1Mode] = useLocalStorageState<PostV1Mode>(
@@ -235,11 +241,14 @@ export default function App() {
 
   const promptErrors = useMemo(() => {
     const errors = validatePrompts(draftPrompts)
+    if (briefMode === 'raw') {
+      errors.brief_prompt = null
+    }
     if (postV1Mode === 'client_draft') {
       errors.post_draft_prompt = null
     }
     return errors
-  }, [draftPrompts, postV1Mode])
+  }, [briefMode, draftPrompts, postV1Mode])
   const subredditError = targetSubreddit.trim() ? null : '不能为空'
   const materialsError = preMaterials.trim() ? null : '不能为空'
 
@@ -275,6 +284,7 @@ export default function App() {
       prompt_overrides: promptOverrides,
       strategy_id: strategyId,
       strategy_notes: strategyNotes.trim() ? strategyNotes.trim() : null,
+      brief_mode: briefMode,
     }
 
     const timer = window.setTimeout(() => {
@@ -305,7 +315,7 @@ export default function App() {
     }, 250)
 
     return () => window.clearTimeout(timer)
-  }, [defaultPrompts, promptOverrides, strategyId, strategyNotes])
+  }, [briefMode, defaultPrompts, promptOverrides, strategyId, strategyNotes])
 
   type StrategyCard = { st: StrategyDef; disabled?: boolean }
   const strategyCards = useMemo<StrategyCard[]>(() => {
@@ -664,6 +674,7 @@ export default function App() {
   function applyRestoreSnapshot(data: RunRestoreResponse) {
     setTargetSubreddit(data.target_subreddit ?? '')
     setPreMaterials(data.pre_materials ?? '')
+    setBriefMode((data.brief_mode ?? 'extract') as BriefMode)
     setStrategyId(data.strategy_id ?? 'free')
     setStrategyNotes(data.strategy_notes ?? '')
     setStopAfterModReview(!!data.stop_after_mod_review)
@@ -722,6 +733,7 @@ export default function App() {
       const payload = {
         target_subreddit: normalizedSub,
         pre_materials: preMaterials,
+        brief_mode: briefMode,
         strategy_id: strategyId,
         strategy_notes: strategyNotes.trim() ? strategyNotes : null,
         prompt_overrides: promptOverrides,
@@ -900,21 +912,22 @@ export default function App() {
                 </div>
               </div>
               <div className="card__headerActions">
-                <button
-                  className="btn btn--ghost"
-                  type="button"
-                  disabled={isLocked}
-                   onClick={() => {
-                     setTargetSubreddit('')
-                     setPreMaterials('')
-                     setStrategyId('free')
-                     setStrategyNotes('')
-                   }}
-                 >
-                   清空
-                 </button>
-               </div>
-            </div>
+                  <button
+                    className="btn btn--ghost"
+                    type="button"
+                    disabled={isLocked}
+                    onClick={() => {
+                      setTargetSubreddit('')
+                      setPreMaterials('')
+                      setBriefMode('extract')
+                      setStrategyId('free')
+                      setStrategyNotes('')
+                    }}
+                  >
+                    清空
+                  </button>
+                </div>
+             </div>
 
             <InputField
               label="Target Subreddit（不带 r/）"
@@ -925,14 +938,34 @@ export default function App() {
               disabled={isLocked}
             />
 
+            <SelectField
+              label="Product Brief 生成方式"
+              value={briefMode}
+              onChange={(v) => setBriefMode(v as BriefMode)}
+              options={[
+                { value: 'extract', label: '默认：先提炼为 Product Brief（推荐）' },
+                { value: 'raw', label: '直接用原文作为 Product Brief（不提炼）' },
+              ]}
+              helper={
+                briefMode === 'raw'
+                  ? 'raw 模式：不调用大模型提炼，直接把下方输入原封不动写入 product_brief.md；内容越长越耗 token。'
+                  : 'extract 模式：后端会先用大模型从“前置资料”提炼 product_brief.md，后续阶段仅使用该 brief。'
+              }
+              disabled={isLocked}
+            />
+
             <TextAreaField
-              label="前置资料（粘贴文本）"
+              label={briefMode === 'raw' ? '前置资料（将原文直接作为 Product Brief）' : '前置资料（粘贴文本）'}
               value={preMaterials}
               onChange={setPreMaterials}
               placeholder={
                 '例如：初步方案、产品详细资料、素材链接、硬性约束（must include / must avoid）…'
               }
-              helper="后端会将原始前置资料保存到 runs/<run_id>/pre_materials.md 以支持恢复；但对话/追问上下文仅使用抽取后的 product_brief.md。"
+              helper={
+                briefMode === 'raw'
+                  ? '后端会保存原文到 runs/<run_id>/pre_materials.md，并将同一份内容原封不动写入 product_brief.md（不提炼）。'
+                  : '后端会保存原文到 runs/<run_id>/pre_materials.md，并先提炼得到 product_brief.md；后续对话/追问仅使用该 brief。'
+              }
               error={materialsError}
               disabled={isLocked}
               rows={12}
