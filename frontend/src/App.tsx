@@ -924,7 +924,6 @@ export default function App() {
                   const brand = st.brand
                   const mentions = formatMentions(brand?.min_mentions, brand?.max_mentions)
                   const pov = toPovLabel(st.pov)
-                  const beatsCount = (st.beats ?? []).length
                   const titleCount = (st.title_templates ?? []).length
                   const isSelected = strategyId === st.id
                   const fullTitle = st.title?.trim() ?? ''

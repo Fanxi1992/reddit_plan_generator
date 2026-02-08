@@ -328,10 +328,10 @@
   color: rgba(15, 23, 42, 0.72);
   line-height: 1.4;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 31px;
+  min-height: calc(1.4em * 3);
 }
 
 .strategyCard__meta {
