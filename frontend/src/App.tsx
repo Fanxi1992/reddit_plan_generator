@@ -27,6 +27,7 @@ import {
   validatePrompts,
 } from './prompts'
 import { useLocalStorageState } from './hooks/useLocalStorageState'
+import { useSessionStorageState } from './hooks/useSessionStorageState'
 
 type BackendStatus = 'online' | 'offline' | 'unknown'
 type PostV1Mode = 'generate' | 'client_draft'
@@ -60,6 +61,29 @@ const OUTPUT_ORDER: OutputKind[] = [
 ]
 
 const RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/
+const WORKSPACE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$/
+
+function getWorkspaceIdFromUrl() {
+  try {
+    const raw = new URLSearchParams(window.location.search).get('w')
+    const v = (raw ?? '').trim()
+    if (!v) return 'default'
+    if (!WORKSPACE_ID_RE.test(v)) return 'default'
+    return v
+  } catch {
+    return 'default'
+  }
+}
+
+function wsKey(workspaceId: string, key: string) {
+  return workspaceId === 'default' ? key : `ws:${workspaceId}:${key}`
+}
+
+function newWorkspaceId() {
+  const ts = Date.now().toString(36)
+  const rand = Math.random().toString(36).slice(2, 8)
+  return `w${ts}_${rand}`
+}
 
 function toCnStatus(status: RunStatusResponse['status']) {
   switch (status) {
@@ -120,6 +144,9 @@ function formatMentions(min: number | undefined, max: number | undefined) {
 }
 
 export default function App() {
+  const workspaceId = useMemo(() => getWorkspaceIdFromUrl(), [])
+  const k = (key: string) => wsKey(workspaceId, key)
+
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('unknown')
   const [loadingPrompts, setLoadingPrompts] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -137,30 +164,30 @@ export default function App() {
   )
   const [draftPromptOverrides, setDraftPromptOverrides] = useLocalStorageState<
     Record<string, string>
-  >('draftPromptOverrides', {})
+  >(k('draftPromptOverrides'), {})
   const [draftPrompts, setDraftPrompts] = useState<Record<string, string>>({})
 
   const [targetSubreddit, setTargetSubreddit] = useLocalStorageState(
-    'draftTargetSubreddit',
+    k('draftTargetSubreddit'),
     '',
   )
-  const [preMaterials, setPreMaterials] = useLocalStorageState('draftPreMaterials', '')
-  const [strategyId, setStrategyId] = useLocalStorageState<string>('draftStrategyId', 'free')
-  const [strategyNotes, setStrategyNotes] = useLocalStorageState('draftStrategyNotes', '')
+  const [preMaterials, setPreMaterials] = useLocalStorageState(k('draftPreMaterials'), '')
+  const [strategyId, setStrategyId] = useLocalStorageState<string>(k('draftStrategyId'), 'free')
+  const [strategyNotes, setStrategyNotes] = useLocalStorageState(k('draftStrategyNotes'), '')
   const [postV1Mode, setPostV1Mode] = useLocalStorageState<PostV1Mode>(
-    'draftPostV1Mode',
+    k('draftPostV1Mode'),
     'generate',
   )
   const [clientPostV1Draft, setClientPostV1Draft] = useLocalStorageState(
-    'draftClientPostV1Draft',
+    k('draftClientPostV1Draft'),
     '',
   )
   const [stopAfterModReview, setStopAfterModReview] = useLocalStorageState<boolean>(
-    'draftStopAfterModReview',
+    k('draftStopAfterModReview'),
     false,
   )
 
-  const [runId, setRunId] = useLocalStorageState<string | null>('currentRunId', null)
+  const [runId, setRunId] = useSessionStorageState<string | null>(k('currentRunId'), null)
   const [run, setRun] = useState<RunStatusResponse | null>(null)
   const [isStarting, setIsStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
@@ -804,6 +831,13 @@ export default function App() {
     setStopError(null)
   }
 
+  function openNewWorkspace() {
+    const next = newWorkspaceId()
+    const url = new URL(window.location.href)
+    url.searchParams.set('w', next)
+    window.open(url.toString(), '_blank', 'noopener,noreferrer')
+  }
+
   return (
     <div className="app">
       <header className="topbar">
@@ -826,6 +860,10 @@ export default function App() {
                     : '后端未知'
               }
             />
+            <span className="tag">workspace:{workspaceId}</span>
+            <button className="btn btn--ghost" type="button" onClick={openNewWorkspace}>
+              New Task
+            </button>
             {runId ? (
               <div className="runId">
                 <span className="runId__label">run_id</span>

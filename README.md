@@ -13,6 +13,19 @@ Start the API server:
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+### Parallel runs (optional)
+
+By default, the backend only allows **1** run at a time (same as before). To enable parallel runs, set:
+
+- `MAX_CONCURRENT_RUNS` (integer, minimum `1`)
+
+Example (PowerShell):
+
+```powershell
+$env:MAX_CONCURRENT_RUNS="2"
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
 ### API flow
 
 1) Get default prompts (per-stage big strings):
@@ -63,4 +76,5 @@ Notes:
 - Upfront `pre_materials` are persisted to `pre_materials.md` in the run folder; only the extracted `product_brief.md` is used as authoritative chat context for the run.
 - Chat history is appended per run in `runs/<run_id>/chat_history.jsonl` and is used for `/api/runs/{run_id}/chat` follow-ups.
 - To avoid in-memory state issues, run Uvicorn with a single worker (default).
+- The frontend supports multiple independent workspaces via `?w=<id>` (or the `New Task` button). Draft inputs/prompts are stored per workspace; `run_id` is stored per browser tab/session.
 

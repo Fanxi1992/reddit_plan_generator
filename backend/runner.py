@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import os
 import re
+import secrets
 import subprocess
 import sys
 import threading
@@ -114,10 +115,23 @@ class RunControl:
         self.process: subprocess.Popen | None = None
 
 
+def _parse_max_concurrent_runs() -> int:
+    raw = (os.environ.get("MAX_CONCURRENT_RUNS") or "").strip()
+    if not raw:
+        return 1
+    try:
+        value = int(raw)
+    except Exception:
+        return 1
+    return max(1, value)
+
+
 class RunManager:
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._execution_lock = threading.Lock()
+        # Default: preserve the existing "only one run at a time" behavior.
+        # Set MAX_CONCURRENT_RUNS>1 to allow parallel runs.
+        self._execution_lock = threading.BoundedSemaphore(_parse_max_concurrent_runs())
         self._runs: dict[str, RunRecord] = {}
         self._controls: dict[str, RunControl] = {}
 
@@ -157,8 +171,8 @@ class RunManager:
     ) -> RunRecord:
         ensure_runs_dir()
 
-        final_run_id = run_id or self._build_default_run_id(target_subreddit=target_subreddit)
-        validate_run_id(final_run_id)
+        base_run_id = run_id or self._build_default_run_id(target_subreddit=target_subreddit)
+        validate_run_id(base_run_id)
 
         if not self._execution_lock.acquire(blocking=False):
             raise RunAlreadyRunningError("A run is already in progress.")
@@ -166,8 +180,33 @@ class RunManager:
         record: RunRecord | None = None
 
         try:
-            run_dir = get_run_dir(final_run_id)
-            run_dir.mkdir(parents=True, exist_ok=False)
+            def allocate_run_dir(run_id_base: str) -> tuple[str, Path]:
+                # When run_id is auto-generated, concurrent starts might collide (same second).
+                # We retry with a short random suffix to ensure a unique directory.
+                allow_suffix = run_id is None
+                attempts = 6 if allow_suffix else 1
+                last_error: Exception | None = None
+                for attempt in range(attempts):
+                    if attempt == 0:
+                        candidate_id = run_id_base
+                    else:
+                        suffix = secrets.token_hex(3)  # 6 chars, [0-9a-f]
+                        max_base = 64 - (1 + len(suffix))
+                        trimmed = run_id_base[:max_base].rstrip("-_") or run_id_base[:max_base]
+                        candidate_id = f"{trimmed}_{suffix}"
+                    validate_run_id(candidate_id)
+                    candidate_dir = get_run_dir(candidate_id)
+                    try:
+                        candidate_dir.mkdir(parents=True, exist_ok=False)
+                        return candidate_id, candidate_dir
+                    except FileExistsError as e:
+                        last_error = e
+                        if not allow_suffix:
+                            raise
+                        continue
+                raise last_error or FileExistsError("Failed to allocate a unique run directory.")
+
+            final_run_id, run_dir = allocate_run_dir(base_run_id)
 
             record = RunRecord(run_id=final_run_id, run_dir=run_dir)
             record.persist()
