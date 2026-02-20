@@ -104,8 +104,8 @@ def main() -> int:
     response = chat.send_message(
         prompt,
         config={
-            "temperature": 0.2,
-            "max_output_tokens": 8000,
+            "temperature": 1.0,
+            "max_output_tokens": 20000,
         },
     )
     full_text = response.text or ""

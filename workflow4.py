@@ -278,7 +278,7 @@ def run_phase4_generation(*, history_path: Path, history: list[dict[str, object]
     response = chat.send_message(
         phase4_prompt,
         config={
-            "temperature": 0.3,
+            "temperature": 1.0,
             "max_output_tokens": 20000,
         },
     )

@@ -650,8 +650,7 @@ def generate_product_brief(template: str, *, pre_materials: str) -> str:
     response = chat.send_message(
         prompt,
         config={
-            "temperature": 0.2,
-            "max_output_tokens": 4096,
+            "temperature": 1.0,
         },
     )
     return response.text or ""
