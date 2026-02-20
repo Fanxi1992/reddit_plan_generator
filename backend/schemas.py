@@ -7,6 +7,11 @@ from pydantic import BaseModel, Field, model_validator
 TopTimeFilter = Literal["day", "week", "month", "year", "all"]
 PostV1Mode = Literal["generate", "client_draft"]
 BriefMode = Literal["extract", "raw"]
+ModelId = Literal[
+    "gemini-3.1-pro-preview",
+    "gemini-3-pro-preview",
+    "gemini-3-flash-preview",
+]
 
 
 class PromptsResponse(BaseModel):
@@ -118,6 +123,10 @@ class RunCreateRequest(BaseModel):
         min_length=1,
         description="Upfront materials (notes/docs). Raw text is persisted to pre_materials.md; only the extracted product_brief.md is used as authoritative chat context.",
     )
+    model_id: ModelId = Field(
+        default="gemini-3.1-pro-preview",
+        description="Gemini model id to use for all LLM calls in this run.",
+    )
     brief_mode: BriefMode = Field(
         default="extract",
         description="How to create product_brief.md. 'extract' summarizes via brief_prompt; 'raw' uses pre_materials verbatim.",
@@ -192,6 +201,10 @@ class RunRestoreResponse(BaseModel):
     run_id: str
     target_subreddit: str
     pre_materials: str
+    model_id: ModelId = Field(
+        default="gemini-3.1-pro-preview",
+        description="Gemini model id used for all LLM calls in this run.",
+    )
     brief_mode: BriefMode = Field(
         default="extract",
         description="How product_brief.md was produced for this run.",

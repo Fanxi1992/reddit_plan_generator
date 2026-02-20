@@ -33,6 +33,10 @@ import { useSessionStorageState } from './hooks/useSessionStorageState'
 type BackendStatus = 'online' | 'offline' | 'unknown'
 type PostV1Mode = 'generate' | 'client_draft'
 type BriefMode = 'extract' | 'raw'
+type ModelId =
+  | 'gemini-3.1-pro-preview'
+  | 'gemini-3-pro-preview'
+  | 'gemini-3-flash-preview'
 type OutputKind =
   | 'post_final'
   | 'engagement_kit'
@@ -174,6 +178,10 @@ export default function App() {
     '',
   )
   const [preMaterials, setPreMaterials] = useLocalStorageState(k('draftPreMaterials'), '')
+  const [modelId, setModelId] = useLocalStorageState<ModelId>(
+    k('draftModelId'),
+    'gemini-3.1-pro-preview',
+  )
   const [briefMode, setBriefMode] = useLocalStorageState<BriefMode>(
     k('draftBriefMode'),
     'extract',
@@ -674,6 +682,7 @@ export default function App() {
   function applyRestoreSnapshot(data: RunRestoreResponse) {
     setTargetSubreddit(data.target_subreddit ?? '')
     setPreMaterials(data.pre_materials ?? '')
+    setModelId((data.model_id ?? 'gemini-3.1-pro-preview') as ModelId)
     setBriefMode((data.brief_mode ?? 'extract') as BriefMode)
     setStrategyId(data.strategy_id ?? 'free')
     setStrategyNotes(data.strategy_notes ?? '')
@@ -733,6 +742,7 @@ export default function App() {
       const payload = {
         target_subreddit: normalizedSub,
         pre_materials: preMaterials,
+        model_id: modelId,
         brief_mode: briefMode,
         strategy_id: strategyId,
         strategy_notes: strategyNotes.trim() ? strategyNotes : null,
@@ -919,6 +929,7 @@ export default function App() {
                     onClick={() => {
                       setTargetSubreddit('')
                       setPreMaterials('')
+                      setModelId('gemini-3.1-pro-preview')
                       setBriefMode('extract')
                       setStrategyId('free')
                       setStrategyNotes('')
@@ -935,6 +946,19 @@ export default function App() {
               onChange={setTargetSubreddit}
               placeholder="CrewAI"
               error={subredditError}
+              disabled={isLocked}
+            />
+
+            <SelectField
+              label="Gemini 模型"
+              value={modelId}
+              onChange={(v) => setModelId(v as ModelId)}
+              options={[
+                { value: 'gemini-3.1-pro-preview', label: 'gemini-3.1-pro-preview（默认）' },
+                { value: 'gemini-3-pro-preview', label: 'gemini-3-pro-preview' },
+                { value: 'gemini-3-flash-preview', label: 'gemini-3-flash-preview' },
+              ]}
+              helper="用于 brief 抽取（extract 模式）以及所有后续写作/审核/改写/互动阶段；raw brief 模式下仅跳过 brief 抽取。"
               disabled={isLocked}
             />
 

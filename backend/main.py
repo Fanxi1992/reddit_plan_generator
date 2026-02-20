@@ -47,6 +47,12 @@ app.add_middleware(
 
 RUNS = RunManager()
 GENAI = genai.Client()
+DEFAULT_MODEL_ID = "gemini-3.1-pro-preview"
+ALLOWED_MODEL_IDS = {
+    "gemini-3.1-pro-preview",
+    "gemini-3-pro-preview",
+    "gemini-3-flash-preview",
+}
 
 _chat_locks: dict[str, threading.Lock] = {}
 _chat_locks_lock = threading.Lock()
@@ -65,6 +71,13 @@ def _ensure_run_not_active(run_id: str) -> None:
     record = RUNS.get_run(run_id)
     if record and record.status in (RunStatus.PENDING, RunStatus.RUNNING):
         raise HTTPException(status_code=409, detail="Run is still in progress.")
+
+
+def _normalize_model_id(raw: object) -> str:
+    value = raw.strip() if isinstance(raw, str) else ""
+    if value in ALLOWED_MODEL_IDS:
+        return value
+    return DEFAULT_MODEL_ID
 
 
 @app.get("/api/health")
@@ -150,6 +163,7 @@ def create_run(payload: RunCreateRequest):
         record = RUNS.start_run(
             target_subreddit=payload.target_subreddit,
             pre_materials=payload.pre_materials,
+            model_id=payload.model_id,
             brief_mode=payload.brief_mode,
             options=options,
             prompt_overrides=payload.prompt_overrides,
@@ -264,6 +278,8 @@ def restore_run(run_id: str):
         raise HTTPException(status_code=500, detail="Invalid run_config.json: missing target_subreddit.")
     target_subreddit = target_subreddit.strip()
 
+    model_id = _normalize_model_id(config.get("model_id"))
+
     post_v1_mode_raw = config.get("post_v1_mode")
     post_v1_mode = post_v1_mode_raw.strip().lower() if isinstance(post_v1_mode_raw, str) else "generate"
     if post_v1_mode not in {"generate", "client_draft"}:
@@ -313,6 +329,7 @@ def restore_run(run_id: str):
         run_id=run_id,
         target_subreddit=target_subreddit,
         pre_materials=pre_materials,
+        model_id=model_id,
         brief_mode=brief_mode,
         prompts={k: prompts[k] for k in PROMPT_KEYS},
         strategy_id=strategy_id,
@@ -411,8 +428,18 @@ def chat(run_id: str, payload: ChatSendRequest):
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
+        model_id = _normalize_model_id(os.environ.get("GEMINI_MODEL", DEFAULT_MODEL_ID))
+        config_path = run_dir / "run_config.json"
+        if config_path.is_file():
+            try:
+                config = json.loads(config_path.read_text(encoding="utf-8"))
+                if isinstance(config, dict):
+                    model_id = _normalize_model_id(config.get("model_id"))
+            except Exception:
+                pass
+
         try:
-            chat_session = GENAI.chats.create(model=os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview"), history=history)
+            chat_session = GENAI.chats.create(model=model_id, history=history)
             response = chat_session.send_message(payload.message)
             reply = response.text or ""
         except Exception as e:

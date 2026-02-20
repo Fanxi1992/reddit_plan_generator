@@ -43,6 +43,12 @@ class RunStatus(str, Enum):
 
 
 STATE_FILENAME = "run_state.json"
+DEFAULT_MODEL_ID = "gemini-3.1-pro-preview"
+ALLOWED_MODEL_IDS = {
+    "gemini-3.1-pro-preview",
+    "gemini-3-pro-preview",
+    "gemini-3-flash-preview",
+}
 
 
 @dataclass
@@ -159,6 +165,7 @@ class RunManager:
         *,
         target_subreddit: str,
         pre_materials: str,
+        model_id: str | None,
         brief_mode: str,
         options: dict | None,
         prompt_overrides: dict[str, str] | None,
@@ -229,6 +236,7 @@ class RunManager:
                     record,
                     target_subreddit=target_subreddit,
                     pre_materials=pre_materials,
+                    model_id=model_id,
                     brief_mode=brief_mode_norm,
                     options=options or {},
                     prompts=prompts,
@@ -245,6 +253,7 @@ class RunManager:
                         "record": record,
                         "target_subreddit": target_subreddit,
                         "pre_materials": pre_materials,
+                        "model_id": model_id,
                         "brief_mode": brief_mode_norm,
                         "options": options or {},
                         "prompts": prompts,
@@ -364,6 +373,7 @@ class RunManager:
         *,
         target_subreddit: str,
         pre_materials: str,
+        model_id: str | None,
         brief_mode: str,
         options: dict,
         prompts: dict[str, str],
@@ -393,6 +403,10 @@ class RunManager:
         if brief_mode_norm not in {"extract", "raw"}:
             brief_mode_norm = "extract"
 
+        model_id_norm = (model_id or "").strip() or DEFAULT_MODEL_ID
+        if model_id_norm not in ALLOWED_MODEL_IDS:
+            model_id_norm = DEFAULT_MODEL_ID
+
         config_path = record.run_dir / "run_config.json"
         pre_materials_path = record.run_dir / "pre_materials.md"
         brief_md_path = record.run_dir / "product_brief.md"
@@ -413,6 +427,7 @@ class RunManager:
 
             config: dict[str, object] = {
                 "target_subreddit": target_subreddit,
+                "model_id": model_id_norm,
                 "options": options,
                 "current_date": current_date,
                 "current_datetime": current_datetime,
@@ -445,8 +460,10 @@ class RunManager:
             env["PYTHONIOENCODING"] = "utf-8"
             env["PROMPTS_FILE"] = str(prompts_path)
             env["RUN_CONFIG_FILE"] = str(config_path)
+            env["GEMINI_MODEL"] = model_id_norm
 
             with log_path.open("a", encoding="utf-8") as log_file:
+                log_file.write(f"[config] model_id={model_id_norm}\n")
                 log_file.write(f"[config] strategy_id={strategy_id_norm}\n")
                 if strategy_notes_norm:
                     log_file.write("[config] strategy_notes provided\n")
@@ -501,7 +518,11 @@ class RunManager:
                     log_file.write("[stage0_brief] Saved product_brief.md (raw) and seeded chat history\n")
                     log_file.flush()
                 else:
-                    brief_text = generate_product_brief(prompts["brief_prompt"], pre_materials=pre_materials)
+                    brief_text = generate_product_brief(
+                        prompts["brief_prompt"],
+                        pre_materials=pre_materials,
+                        model_id=model_id_norm,
+                    )
                     brief_json = extract_json_object(brief_text)
                     brief_md = strip_json_code_blocks(brief_text).strip()
                     if not brief_md:
@@ -641,8 +662,7 @@ def extract_json_object(text: str) -> dict | None:
     return obj if isinstance(obj, dict) else None
 
 
-def generate_product_brief(template: str, *, pre_materials: str) -> str:
-    model_id = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
+def generate_product_brief(template: str, *, pre_materials: str, model_id: str) -> str:
     prompt = template.replace("{{pre_materials}}", pre_materials.strip())
 
     client = genai.Client()

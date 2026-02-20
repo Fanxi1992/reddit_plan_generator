@@ -38,10 +38,15 @@ export type StrategiesResponse = {
 export type RunStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown'
 export type PostV1Mode = 'generate' | 'client_draft'
 export type BriefMode = 'extract' | 'raw'
+export type ModelId =
+  | 'gemini-3.1-pro-preview'
+  | 'gemini-3-pro-preview'
+  | 'gemini-3-flash-preview'
 
 export type RunCreateRequest = {
   target_subreddit: string
   pre_materials: string
+  model_id?: ModelId
   brief_mode?: BriefMode
   strategy_id?: string
   strategy_notes?: string | null
@@ -77,6 +82,7 @@ export type RunRestoreResponse = {
   run_id: string
   target_subreddit: string
   pre_materials: string
+  model_id: ModelId
   brief_mode: BriefMode
   prompts: Record<string, string>
   strategy_id: string
