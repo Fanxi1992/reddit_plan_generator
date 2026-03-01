@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react'
 
-export function useSessionStorageState<T>(key: string, initialValue: T) {
+type StorageStateOptions = {
+  readOnInit?: boolean
+}
+
+export function useSessionStorageState<T>(
+  key: string,
+  initialValue: T,
+  options?: StorageStateOptions,
+) {
+  const readOnInit = options?.readOnInit ?? true
   const [state, setState] = useState<T>(() => {
+    if (!readOnInit) return initialValue
     try {
       const raw = window.sessionStorage.getItem(key)
       if (!raw) return initialValue
@@ -21,4 +31,3 @@ export function useSessionStorageState<T>(key: string, initialValue: T) {
 
   return [state, setState] as const
 }
-

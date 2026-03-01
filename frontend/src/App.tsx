@@ -170,38 +170,52 @@ export default function App() {
   )
   const [draftPromptOverrides, setDraftPromptOverrides] = useLocalStorageState<
     Record<string, string>
-  >(k('draftPromptOverrides'), {})
+  >(k('draftPromptOverrides'), {}, { readOnInit: false })
   const [draftPrompts, setDraftPrompts] = useState<Record<string, string>>({})
 
   const [targetSubreddit, setTargetSubreddit] = useLocalStorageState(
     k('draftTargetSubreddit'),
     '',
+    { readOnInit: false },
   )
-  const [preMaterials, setPreMaterials] = useLocalStorageState(k('draftPreMaterials'), '')
+  const [preMaterials, setPreMaterials] = useLocalStorageState(k('draftPreMaterials'), '', {
+    readOnInit: false,
+  })
   const [modelId, setModelId] = useLocalStorageState<ModelId>(
     k('draftModelId'),
     'gemini-3.1-pro-preview',
+    { readOnInit: false },
   )
   const [briefMode, setBriefMode] = useLocalStorageState<BriefMode>(
     k('draftBriefMode'),
     'extract',
+    { readOnInit: false },
   )
-  const [strategyId, setStrategyId] = useLocalStorageState<string>(k('draftStrategyId'), 'free')
-  const [strategyNotes, setStrategyNotes] = useLocalStorageState(k('draftStrategyNotes'), '')
+  const [strategyId, setStrategyId] = useLocalStorageState<string>(k('draftStrategyId'), 'free', {
+    readOnInit: false,
+  })
+  const [strategyNotes, setStrategyNotes] = useLocalStorageState(k('draftStrategyNotes'), '', {
+    readOnInit: false,
+  })
   const [postV1Mode, setPostV1Mode] = useLocalStorageState<PostV1Mode>(
     k('draftPostV1Mode'),
     'generate',
+    { readOnInit: false },
   )
   const [clientPostV1Draft, setClientPostV1Draft] = useLocalStorageState(
     k('draftClientPostV1Draft'),
     '',
+    { readOnInit: false },
   )
   const [stopAfterModReview, setStopAfterModReview] = useLocalStorageState<boolean>(
     k('draftStopAfterModReview'),
     false,
+    { readOnInit: false },
   )
 
-  const [runId, setRunId] = useSessionStorageState<string | null>(k('currentRunId'), null)
+  const [runId, setRunId] = useSessionStorageState<string | null>(k('currentRunId'), null, {
+    readOnInit: false,
+  })
   const [run, setRun] = useState<RunStatusResponse | null>(null)
   const [isStarting, setIsStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
@@ -395,6 +409,38 @@ export default function App() {
     if (template) md += `\n## Draft Template\n\n${template}\n`
     return md.trim()
   }, [selectedStrategy])
+
+  useEffect(() => {
+    const localKeys = [
+      'draftPromptOverrides',
+      'draftTargetSubreddit',
+      'draftPreMaterials',
+      'draftModelId',
+      'draftBriefMode',
+      'draftStrategyId',
+      'draftStrategyNotes',
+      'draftPostV1Mode',
+      'draftClientPostV1Draft',
+      'draftStopAfterModReview',
+    ].map((key) => wsKey(workspaceId, key))
+    const sessionKeys = [wsKey(workspaceId, 'currentRunId')]
+
+    try {
+      for (const key of localKeys) {
+        window.localStorage.removeItem(key)
+      }
+    } catch {
+      // ignore storage access errors
+    }
+
+    try {
+      for (const key of sessionKeys) {
+        window.sessionStorage.removeItem(key)
+      }
+    } catch {
+      // ignore storage access errors
+    }
+  }, [workspaceId])
 
   useEffect(() => {
     if (!runId) return

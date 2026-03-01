@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react'
 
-export function useLocalStorageState<T>(key: string, initialValue: T) {
+type StorageStateOptions = {
+  readOnInit?: boolean
+}
+
+export function useLocalStorageState<T>(
+  key: string,
+  initialValue: T,
+  options?: StorageStateOptions,
+) {
+  const readOnInit = options?.readOnInit ?? true
   const [state, setState] = useState<T>(() => {
+    if (!readOnInit) return initialValue
     try {
       const raw = window.localStorage.getItem(key)
       if (!raw) return initialValue
