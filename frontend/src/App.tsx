@@ -68,6 +68,7 @@ const OUTPUT_ORDER: OutputKind[] = [
 
 const RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/
 const WORKSPACE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$/
+const RECENT_RUN_MAX = 50
 
 function getWorkspaceIdFromUrl() {
   try {
@@ -445,7 +446,7 @@ export default function App() {
     setRecentRunIds((prev) => {
       if (prev[0] === runId) return prev
       const next = [runId, ...prev.filter((id) => id !== runId)]
-      return next.slice(0, 12)
+      return next.slice(0, RECENT_RUN_MAX)
     })
   }, [runId, setRecentRunIds])
 
@@ -675,7 +676,7 @@ export default function App() {
     setRecentRunIds((prev) => {
       if (prev[0] === normalized) return prev
       const next = [normalized, ...prev.filter((x) => x !== normalized)]
-      return next.slice(0, 12)
+      return next.slice(0, RECENT_RUN_MAX)
     })
   }
 
@@ -1390,19 +1391,21 @@ export default function App() {
             {recentRunIds.length ? (
               <div className="recentRuns">
                 <div className="recentRuns__label">最近 run_id：</div>
-                <div className="recentRuns__list">
-                  {recentRunIds.slice(0, 8).map((id) => (
-                    <button
-                      key={id}
-                      className="btn btn--ghost btn--sm recentRuns__btn"
-                      type="button"
-                      disabled={isLocked || resumeLoading}
-                      onClick={() => openRunById(id)}
-                      title={id}
-                    >
-                      {id}
-                    </button>
-                  ))}
+                <div className="recentRuns__scroll">
+                  <div className="recentRuns__list">
+                    {recentRunIds.slice(0, RECENT_RUN_MAX).map((id) => (
+                      <button
+                        key={id}
+                        className="btn btn--ghost btn--sm recentRuns__btn"
+                        type="button"
+                        disabled={isLocked || resumeLoading}
+                        onClick={() => openRunById(id)}
+                        title={id}
+                      >
+                        {id}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : null}
