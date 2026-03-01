@@ -230,9 +230,6 @@ export default function App() {
   const [resumeLoading, setResumeLoading] = useState(false)
   const [resumeError, setResumeError] = useState<string | null>(null)
 
-  const [restoreLoading, setRestoreLoading] = useState(false)
-  const [restoreError, setRestoreError] = useState<string | null>(null)
-
   const [selectedOutput, setSelectedOutput] = useState<OutputKind>('post_final')
   const [outputMarkdown, setOutputMarkdown] = useState<Partial<Record<OutputKind, string>>>({})
   const [outputLoading, setOutputLoading] = useState<OutputKind | null>(null)
@@ -451,10 +448,6 @@ export default function App() {
       return next.slice(0, 12)
     })
   }, [runId, setRecentRunIds])
-
-  useEffect(() => {
-    setRestoreError(null)
-  }, [runId])
 
   useEffect(() => {
     let cancelled = false
@@ -699,23 +692,23 @@ export default function App() {
       return
     }
 
-    if (id === runId) {
-      setResumeError(null)
-      setResumeRunId('')
-      return
-    }
-
     setResumeError(null)
     setResumeLoading(true)
     try {
-      const data = await fetchJson<RunStatusResponse>(`/api/runs/${id}`, {
-        timeoutMs: 20000,
-      })
+      const [runData, restoreData] = await Promise.all([
+        fetchJson<RunStatusResponse>(`/api/runs/${id}`, {
+          timeoutMs: 20000,
+        }),
+        fetchJson<RunRestoreResponse>(`/api/runs/${id}/restore`, {
+          timeoutMs: 30000,
+        }),
+      ])
+      applyRestoreSnapshot(restoreData)
       rememberRunId(id)
       setStartError(null)
       setStopError(null)
       setRunId(id)
-      setRun(data)
+      setRun(runData)
       setResumeRunId('')
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : '无法加载该 run_id，请检查后端/网络'
@@ -745,35 +738,6 @@ export default function App() {
       }
       return next
     })
-  }
-
-  async function restoreDraftFromCurrentRun() {
-    if (!runId) return
-    if (isLocked) return
-
-    if (!defaultPrompts) {
-      setRestoreError('默认提示词尚未加载，无法恢复。')
-      return
-    }
-
-    const confirmed = window.confirm(
-      `将用 run_id=${runId} 的历史输入/提示词覆盖左侧草稿？\n\n提示：这不会影响该 run 的聊天；重新运行会生成新的 run_id。`,
-    )
-    if (!confirmed) return
-
-    setRestoreError(null)
-    setRestoreLoading(true)
-    try {
-      const data = await fetchJson<RunRestoreResponse>(`/api/runs/${runId}/restore`, {
-        timeoutMs: 30000,
-      })
-      applyRestoreSnapshot(data)
-    } catch (e) {
-      const msg = e instanceof ApiError ? e.message : '恢复失败，请检查后端/网络'
-      setRestoreError(msg)
-    } finally {
-      setRestoreLoading(false)
-    }
   }
 
   async function startRun() {
@@ -1408,7 +1372,7 @@ export default function App() {
                 if (resumeError) setResumeError(null)
               }}
               placeholder="20260110_114637"
-              helper="切换到该 run_id，并自动加载该任务的历史输出/聊天记录（不会覆盖左侧草稿）。"
+              helper="切换到该 run_id，并自动全量恢复该任务的历史输入/提示词/输出/聊天记录（会覆盖左侧草稿）。"
               error={resumeError}
               disabled={isLocked || resumeLoading}
               rightActions={
@@ -1432,7 +1396,7 @@ export default function App() {
                       key={id}
                       className="btn btn--ghost btn--sm recentRuns__btn"
                       type="button"
-                      disabled={isLocked || resumeLoading || id === runId}
+                      disabled={isLocked || resumeLoading}
                       onClick={() => openRunById(id)}
                       title={id}
                     >
@@ -1440,28 +1404,6 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-              </div>
-            ) : null}
-
-            {runId ? (
-              <div className="hint">
-                恢复草稿：
-                <button
-                  className="btn btn--ghost btn--sm"
-                  type="button"
-                  disabled={isLocked || restoreLoading || loadingPrompts || !defaultPrompts}
-                  onClick={restoreDraftFromCurrentRun}
-                >
-                  {restoreLoading ? '恢复中…' : '恢复到左侧'}
-                </button>
-                <span className="tag tag--warn">会覆盖左侧草稿</span>
-              </div>
-            ) : null}
-
-            {restoreError ? (
-              <div className="alert alert--bad">
-                <div className="alert__title">恢复失败</div>
-                <div className="alert__body">{restoreError}</div>
               </div>
             ) : null}
 
