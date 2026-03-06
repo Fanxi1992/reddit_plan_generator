@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import html
 import json
+import math
 import os
 import random
 import re
@@ -145,6 +146,11 @@ def _fetch_json_via_curl(
     if not curl_path:
         return 0, None, "curl not found for Reddit JSON fallback"
 
+    # Some server-side curl builds are stricter about --max-time parsing than the
+    # desktop environment used during development. Use a plain integer string so
+    # locale/version differences do not break the fallback path.
+    safe_timeout_sec = max(1, int(math.ceil(timeout_sec if math.isfinite(timeout_sec) else 15.0)))
+
     marker = f"__curl_status_{uuid.uuid4().hex}__"
     cmd: list[str] = [
         curl_path,
@@ -152,7 +158,7 @@ def _fetch_json_via_curl(
         "-L",
         "--compressed",
         "--max-time",
-        str(timeout_sec),
+        str(safe_timeout_sec),
         "-w",
         f"\n{marker}%{{http_code}}",
         "--cookie",
